@@ -5,11 +5,6 @@ server/*
 !server/config/
 server/config/*
 !server/config/paper-world-defaults.yml
-!server/plugins/
-server/plugins/*
-!server/plugins/GrimAC/
-server/plugins/GrimAC/*
-!server/plugins/GrimAC/config.yml
 client/.minecraft/
 client/instances/
 client/cache/

@@ -125,6 +125,14 @@ def build_base(g, facts, depth=8, size=5):
     for spec, n in (("crafting_table", 1), ("stone", 8), ("planks", 8)):
         if not crafting.ensure(g, spec, n):
             return False
+    # Build close to world spawn: that is where bots reappear after dying.
+    spawn = m.world_info().spawn
+    if math.dist(g.pos()[::2], spawn[::2]) > 48:
+        g.status = "walking to base site"
+        g.b(f"goto {spawn[0] + 12} {spawn[2] + 12}")
+        g.sleep(2)
+        g.wait(lambda: not g.busy(), 600, 2)
+        g.stop()
     x, y, z = g.block_pos()
     floor, r = max(y - depth, 12), size // 2
     g.status = "digging base"

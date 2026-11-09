@@ -40,8 +40,8 @@ BARITONE_SETTINGS = {
     "renderPath": "false", "renderGoal": "false",
     "renderSelectionBoxes": "false", "renderCachedChunks": "false",
 }
-METEOR_MODULES = ("auto-eat", "auto-respawn", "auto-armor", "auto-weapon",
-                  "auto-replenish")
+METEOR_MODULES = ("kill-aura", "auto-eat", "auto-respawn", "auto-armor",
+                  "auto-weapon", "auto-replenish")
 
 
 class TaskChanged(Exception):
@@ -68,8 +68,20 @@ class Game:
     def setup(self):
         for k, v in BARITONE_SETTINGS.items():
             self.b(f"set {k} {v}")
+        # Kill Aura only at monsters (its default target is players).
+        aura = [h for h in HOSTILES if h not in ("enderman", "piglin_brute")]
+        m.chat(".settings kill-aura entities " + ",".join(aura))
         for mod in METEOR_MODULES:
             m.chat(f".toggle {mod} on")
+
+    def respawn(self):
+        """Leave the death screen (Meteor's auto-respawn only catches deaths
+        that happen after it was switched on)."""
+        self.mc.player.respawn()
+        time.sleep(1)
+        if m.screen_name():
+            self.mc.setScreen(None)
+        self._click = None
 
     # -- state -------------------------------------------------------------
     def pos(self):

@@ -43,7 +43,8 @@ class Agent:
         g = self.g
         body = dict(name=g.name, pos=[round(v) for v in g.pos()],
                     health=round(g.health(), 1), food=g.hunger(),
-                    inventory=g.inv(), status=g.status, **extra)
+                    inventory=g.inv(), status=g.status, night=g.is_night(),
+                    **extra)
         req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(),
                                      {"Content-Type": "application/json"})
         try:
@@ -65,12 +66,15 @@ class Agent:
         self.was_dead = dead
         if dead:
             return
-        if now - self.last_fight > 0.65:
-            foes = g.hostiles(4.5)
-            if foes:
-                g.close_screen()
-                g.attack(foes[0])
-                self.last_fight = now
+        if now - self.last_fight > 1 and g.hostiles(4.5):
+            # Baritone owns the camera while pathing, so pause it, fight
+            # properly, then let it carry on. (Kill Aura helps as well.)
+            g.b("pause")
+            try:
+                g.fight()
+            finally:
+                g.b("resume")
+            self.last_fight = time.time()
         if now - self.last_report > 3:
             task = self.report()
             if self.interruptible and task and self.task:
@@ -113,8 +117,11 @@ class Agent:
         g = self.g
         self.reload_code()
         task = self.report()
-        if task is None or g.health() <= 0:
+        if task is None:
             time.sleep(3)
+            return
+        if g.health() <= 0:
+            g.respawn()
             return
         self.assigned = task["id"]  # what the coordinator thinks we do
         if task.get("surface") and g.is_night():

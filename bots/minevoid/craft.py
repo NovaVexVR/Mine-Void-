@@ -78,9 +78,22 @@ def craft(g, item, times=1, retries=3):
     pattern, key, _ = RECIPES[item]
     g.status = f"crafting {item}"
     g.fight()  # never start UI work with a mob in reach
-    for spec, n in needs(item, times).items():
-        if not ensure(g, spec, n):
-            return False
+    width = max(len(r) for r in pattern)
+    small = width <= 2 and len(pattern) <= 2
+    if not small and not g.find_block("crafting_table", 6) \
+            and not ensure(g, "crafting_table", 1):
+        return False
+    # Making one ingredient can eat another (sticks and tables use planks),
+    # so repeat until a whole pass finds everything in place.
+    want = needs(item, times)
+    for _ in range(4):
+        if all(g.count(matcher(spec)) >= n for spec, n in want.items()):
+            break
+        for spec, n in want.items():
+            if not ensure(g, spec, n):
+                return False
+    else:
+        return False
     if times > 1:
         # Keep every grid cell fed from a single stack: a cell cannot mix
         # e.g. oak and birch planks. Split into batches the first stack covers.
@@ -91,8 +104,6 @@ def craft(g, item, times=1, retries=3):
             batch = min(batch, max(1, first // n))
         if batch < times:
             return craft(g, item, batch) and craft(g, item, times - batch)
-    width = max(len(r) for r in pattern)
-    small = width <= 2 and len(pattern) <= 2
     if small:
         g.close_screen()
         grid_w, top = 2, None
@@ -127,7 +138,9 @@ def craft(g, item, times=1, retries=3):
                     g.click(1 + r * grid_w + c, 1)  # right-click: drop one
                 g.click(src)                       # put the rest back
                 left -= put
-    time.sleep(0.3)
+    # The server computes the result; wait for it to show up.
+    menu = g.menu()
+    g.wait_plain(lambda: not menu.getSlot(0).getItem().isEmpty(), 4)
     g.click(0, 0, "QUICK_MOVE")                    # shift-click the result
     time.sleep(0.4)
     if not small:

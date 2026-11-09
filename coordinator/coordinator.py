@@ -83,8 +83,12 @@ class Coordinator:
                 if b.get("task", {}).get("id") == task_id
                 and now - b["seen"] < LEASE_SECONDS]
 
-    def pick(self, name, inv):
+    def pick(self, name, inv, night=False):
+        """First unfinished task this bot may take. At night, underground
+        work from later phases is preferred over surface tasks; if only
+        surface work is left the bot gets it anyway and shelters."""
         now = time.time()
+        first_surface = None
         for phase in self.goal["phases"]:
             for task in phase["tasks"]:
                 if self.satisfied(task, name, inv):
@@ -93,8 +97,12 @@ class Coordinator:
                     others = [h for h in self.holders(task["id"], now) if h != name]
                     if len(others) >= task.get("slots", 1):
                         continue
-                return dict(task, phase=phase["id"])
-        return dict(self.goal["fallback"], phase="fallback")
+                task = dict(task, phase=phase["id"])
+                if night and task.get("surface"):
+                    first_surface = first_surface or task
+                    continue
+                return task
+        return first_surface or dict(self.goal["fallback"], phase="fallback")
 
     # -- endpoints ---------------------------------------------------------
     def report(self, r):
@@ -111,7 +119,7 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
-            task = self.pick(name, r.get("inventory", {}))
+            task = self.pick(name, r.get("inventory", {}), r.get("night", False))
             if task["id"] != prev.get("task", {}).get("id"):
                 self.log(f"{name} -> {task['phase']}/{task['id']}")
             self.bots[name] = dict(r, seen=time.time(), task=task)
