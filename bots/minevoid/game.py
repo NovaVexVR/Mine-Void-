@@ -1,0 +1,369 @@
+"""Thin wrapper over Minescript, Baritone and Meteor for one bot client.
+
+Everything that touches the game goes through here so skills stay readable.
+Game objects are reached with Minescript's Java reflection (Mojang names);
+Baritone is driven through its public API and Meteor through chat commands.
+"""
+import math
+import time
+
+import minescript as m
+from java import JavaClass
+
+HOSTILES = ("zombie", "skeleton", "spider", "creeper", "drowned", "husk", "stray",
+            "witch", "slime", "phantom", "pillager", "vindicator", "enderman",
+            "cave_spider", "silverfish", "zombie_villager", "bogged", "blaze",
+            "wither_skeleton", "piglin_brute", "hoglin", "magma_cube", "ghast")
+BLOCK_GROUPS = {
+    "logs": "oak_log birch_log spruce_log jungle_log acacia_log dark_oak_log "
+            "cherry_log mangrove_log pale_oak_log",
+    "stone": "stone cobblestone deepslate cobbled_deepslate",
+    "iron": "iron_ore deepslate_iron_ore",
+    "coal": "coal_ore deepslate_coal_ore",
+    "grass": "short_grass tall_grass",
+}
+BARITONE_SETTINGS = {
+    # Play like a legit player: the server runs GrimAC and anti-xray, so do
+    # not trust ore positions in chunk data and avoid twitchy movement.
+    "legitMine": "true",
+    "legitMineYLevel": "16",
+    "allowParkour": "false",
+    "allowSprint": "true",
+    "antiCheatCompatibility": "true",
+    "allowBreak": "true",
+    "allowPlace": "true",
+    "rightClickContainerOnArrival": "true",
+    "mineScanDroppedItems": "true",
+    "avoidance": "true",          # path around mobs
+    "chatControl": "true",
+    "notificationOnPathComplete": "false",
+    "renderPath": "false", "renderGoal": "false",
+    "renderSelectionBoxes": "false", "renderCachedChunks": "false",
+}
+METEOR_MODULES = ("auto-eat", "auto-respawn", "auto-armor", "auto-weapon",
+                  "auto-replenish")
+
+
+class TaskChanged(Exception):
+    """Raised inside a skill when the coordinator reassigns the bot."""
+
+
+def short(item):
+    if not item:  # unloaded chunk
+        return "unknown"
+    return item.split(":", 1)[-1].split("[", 1)[0]
+
+
+class Game:
+    def __init__(self):
+        self.name = m.player_name()
+        self.mc = JavaClass("net.minecraft.client.Minecraft").getInstance()
+        self.ClickType = JavaClass("net.minecraft.world.inventory.ClickType")
+        api = JavaClass("baritone.api.BaritoneAPI")
+        self.baritone = api.getProvider().getPrimaryBaritone()
+        self.on_tick = None  # set by the agent: heartbeat + survival
+        self.status = "starting"
+        self._click = None
+
+    def setup(self):
+        for k, v in BARITONE_SETTINGS.items():
+            self.b(f"set {k} {v}")
+        for mod in METEOR_MODULES:
+            m.chat(f".toggle {mod} on")
+
+    # -- state -------------------------------------------------------------
+    def pos(self):
+        return m.player_position()
+
+    def block_pos(self):
+        return [math.floor(v) for v in m.player_position()]
+
+    def stacks(self):
+        return m.player_inventory()
+
+    def inv(self):
+        out = {}
+        for s in m.player_inventory():
+            out[short(s.item)] = out.get(short(s.item), 0) + s.count
+        return out
+
+    def count(self, pred):
+        return sum(n for item, n in self.inv().items() if pred(item))
+
+    def health(self):
+        return m.player_health()
+
+    def hunger(self):
+        return self.mc.player.getFoodData().getFoodLevel()
+
+    def is_night(self):
+        return 12800 < m.world_info().day_ticks % 24000 < 23200
+
+    def block(self, x, y, z):
+        return short(m.getblock(x, y, z))
+
+    def log(self, *msg):
+        m.log(f"[minevoid:{self.name}]", *msg)
+
+    # -- waiting -----------------------------------------------------------
+    def sleep(self, seconds):
+        """Sleep while keeping heartbeat/survival alive."""
+        end = time.time() + seconds
+        while True:
+            if self.on_tick:
+                self.on_tick()
+            left = end - time.time()
+            if left <= 0:
+                return
+            time.sleep(min(0.25, left))
+
+    def wait(self, cond, timeout, poll=0.5):
+        end = time.time() + timeout
+        while time.time() < end:
+            if cond():
+                return True
+            self.sleep(poll)
+        return bool(cond())
+
+    # -- baritone ----------------------------------------------------------
+    def b(self, command):
+        return self.baritone.getCommandManager().execute(command)
+
+    def busy(self):
+        bt = self.baritone
+        return bool(bt.getPathingBehavior().isPathing()
+                    or bt.getMineProcess().isActive()
+                    or bt.getCustomGoalProcess().isActive()
+                    or bt.getBuilderProcess().isActive()
+                    or bt.getGetToBlockProcess().isActive()
+                    or bt.getExploreProcess().isActive()
+                    or bt.getFarmProcess().isActive())
+
+    def stop(self):
+        self.b("stop")
+        for key in ("forward", "attack", "use", "jump", "sneak"):
+            getattr(m, f"player_press_{key}")(False)
+
+    def goto(self, x, y, z, timeout=120, near=0):
+        """Walk (digging/bridging as needed) to a block. True on arrival."""
+        self.b(f"goto {x} {y} {z}")
+        self.sleep(1)
+
+        def arrived():
+            px, py, pz = self.pos()
+            return (abs(px - x - 0.5) <= near + 0.8 and abs(pz - z - 0.5) <= near + 0.8
+                    and abs(py - y) <= near + 1.2)
+        ok = self.wait(lambda: arrived() or not self.busy(), timeout)
+        self.b("stop")
+        return ok and arrived()
+
+    def goto_near(self, x, y, z, radius=2, timeout=60):
+        """Path to within `radius` blocks of a position."""
+        goal = JavaClass("baritone.api.pathing.goals.GoalNear")(
+            JavaClass("net.minecraft.core.BlockPos")(x, y, z), radius)
+        self.baritone.getCustomGoalProcess().setGoalAndPath(goal)
+        self.sleep(0.5)
+        near = lambda: math.dist(self.pos(), (x + .5, y, z + .5)) <= radius + 1
+        ok = self.wait(lambda: near() or not self.busy(), timeout)
+        self.b("stop")
+        return ok and near()
+
+    def goto_block(self, block, timeout=60):
+        """Go to the nearest known block of a type; opens it if a container."""
+        self.b(f"goto {block}")
+        self.sleep(1.5)
+        self.wait(lambda: m.screen_name() or not self.busy(), timeout)
+        self.b("stop")
+
+    # -- inventory / container clicks -------------------------------------
+    def menu(self):
+        return self.mc.player.containerMenu
+
+    def click(self, slot, button=0, kind="PICKUP"):
+        """Click a slot of the currently open menu. Every reflection call is
+        a round trip to the client, so the lookups are cached and refreshed
+        with `sync_menu()` whenever a screen opens or closes."""
+        if self._click is None:
+            self.sync_menu()
+        gm, player, cid, kinds = self._click
+        gm.handleInventoryMouseClick(cid, slot, button, kinds[kind], player)
+
+    def sync_menu(self):
+        p = self.mc.player
+        kinds = {k: getattr(self.ClickType, k) for k in ("PICKUP", "QUICK_MOVE")}
+        self._click = (self.mc.gameMode, p, p.containerMenu.containerId, kinds)
+
+    def menu_slot(self, inv_slot, top_slots):
+        """Map a player-inventory slot to a slot id in the open menu, given
+        how many container slots precede the player inventory (crafting
+        table 10, furnace 3, chest 27). top_slots=None is the inventory
+        screen itself."""
+        if top_slots is None:
+            return inv_slot + 36 if inv_slot < 9 else inv_slot
+        return top_slots + (27 + inv_slot if inv_slot < 9 else inv_slot - 9)
+
+    def close_screen(self):
+        if m.screen_name():
+            self.mc.player.closeContainer()
+            time.sleep(0.3)
+        self._click = None
+
+    def select(self, pred):
+        """Put an item matching pred in hand. Returns False if absent."""
+        for s in m.player_inventory():
+            if pred(short(s.item)):
+                slot = s.slot if s.slot < 9 else m.player_inventory_slot_to_hotbar(s.slot)
+                m.player_inventory_select_slot(slot)
+                time.sleep(0.2)
+                return True
+        return False
+
+    # -- world interaction -------------------------------------------------
+    def use_on(self, x, y, z, hold=0.4):
+        """Look at a point and right-click."""
+        m.player_look_at(x, y, z)
+        time.sleep(0.35)
+        m.player_press_use(True)
+        time.sleep(hold)
+        m.player_press_use(False)
+        time.sleep(0.4)
+
+    def break_block(self, x, y, z, timeout=15):
+        m.player_look_at(x + 0.5, y + 0.5, z + 0.5)
+        time.sleep(0.2)
+        m.player_press_attack(True)
+        try:
+            return self.wait(lambda: self.block(x, y, z) in ("air", "cave_air"),
+                             timeout, 0.2)
+        finally:
+            m.player_press_attack(False)
+
+    def find_block(self, name, radius=4):
+        """Nearest block of a type within a small cube, or None."""
+        px, py, pz = self.block_pos()
+        lo = [px - radius, py - radius, pz - radius]
+        region = m.get_block_region(lo, [px + radius, py + radius, pz + radius])
+        best, n = None, 2 * radius + 1
+        for x in range(lo[0], lo[0] + n):
+            for y in range(lo[1], lo[1] + n):
+                for z in range(lo[2], lo[2] + n):
+                    if short(region.get_block(x, y, z)) == name:
+                        d = math.dist((x, y, z), (px, py, pz))
+                        if best is None or d < best[0]:
+                            best = (d, [x, y, z])
+        return best and best[1]
+
+    def place_block(self, name):
+        """Place a block from the inventory on the ground next to the bot.
+        Returns where it ended up, or None."""
+        if not self.select(lambda i: i == name):
+            return None
+        px, py, pz = self.block_pos()
+        soft = ("air", "cave_air", "short_grass", "tall_grass", "snow",
+                "leaf_litter", "fern", "dandelion", "poppy")
+        bad_floor = soft + ("water", "lava", "crafting_table", "furnace",
+                            "chest", "unknown")
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1),
+                       (1, -1), (-1, 1), (2, 0), (-2, 0), (0, 2), (0, -2)):
+            x, z = px + dx, pz + dz
+            for y in (py, py - 1, py + 1):
+                if (self.block(x, y, z) in soft
+                        and self.block(x, y - 1, z) not in bad_floor):
+                    # Aim just inside the top face of the floor block. The
+                    # ray can still clip something else, so look for where
+                    # the block really went instead of assuming.
+                    self.use_on(x + 0.5, y - 0.05, z + 0.5)
+                    pos = self.find_block(name)
+                    if pos:
+                        return pos
+        return None
+
+    def open_block(self, name, screen):
+        """Open a crafting table / furnace / chest: use one within reach,
+        walk to one nearby, or place one from the inventory. `screen` is a
+        substring of the expected screen title."""
+        is_open = lambda: screen in (m.screen_name() or "")
+        if is_open():
+            return True
+        self.close_screen()
+        pos = self.find_block(name, 6)
+        if pos and math.dist(pos, self.block_pos()) > 3:
+            self.goto_near(*pos, radius=2, timeout=40)
+        if not pos:
+            pos = self.place_block(name)
+        if not pos:
+            self.log(f"no {name} nearby and could not place one")
+            return False
+        for _ in range(5):
+            if not self.aim(pos):
+                continue
+            m.player_press_use(True)
+            time.sleep(0.4)
+            m.player_press_use(False)
+            if self.wait_plain(is_open, 1.5):
+                self._click = None
+                return True
+        self.log(f"could not open {name} at {pos}")
+        return False
+
+    def aim(self, pos):
+        """Look at a block and confirm the crosshair is really on it. If
+        something is in the way, clear it (leaves, grass) or step closer."""
+        blocker = None
+        for dy in (0.5, 0.95, 0.15):
+            m.player_look_at(pos[0] + 0.5, pos[1] + dy, pos[2] + 0.5)
+            time.sleep(0.35)
+            hit = m.player_get_targeted_block(4.5)
+            if hit and list(hit.position) == list(pos):
+                return True
+            blocker = hit or blocker
+        kind = short(blocker.type) if blocker else ""
+        if kind.endswith("_leaves") or kind in ("short_grass", "tall_grass", "fern",
+                                                "leaf_litter", "vine", "snow"):
+            self.break_block(*blocker.position, timeout=6)
+        else:
+            self.goto_near(*pos, radius=1, timeout=20)
+        return False
+
+    def wait_plain(self, cond, timeout):
+        """Wait without ticking (no heartbeat/defence), for UI sequences."""
+        end = time.time() + timeout
+        while time.time() < end:
+            if cond():
+                return True
+            time.sleep(0.2)
+        return bool(cond())
+
+    def attack(self, entity):
+        x, y, z = entity.position
+        m.player_look_at(x, y + 0.6, z)
+        time.sleep(0.1)
+        m.player_press_attack(True)
+        time.sleep(0.1)
+        m.player_press_attack(False)
+
+    def fight(self, radius=6, timeout=25):
+        """Stand and fight until no hostile is within `radius`."""
+        end = time.time() + timeout
+        fought = False
+        while time.time() < end:
+            foes = self.hostiles(radius)
+            if not foes:
+                break
+            if not fought:
+                self.close_screen()
+                self.select(lambda i: i.endswith("_sword") or i.endswith("_axe"))
+                fought = True
+            if math.dist(foes[0].position, self.pos()) <= 3.6:
+                self.attack(foes[0])
+                time.sleep(0.55)
+            else:
+                time.sleep(0.2)
+        return fought
+
+    def hostiles(self, radius=5):
+        out = []
+        for e in m.entities(max_distance=radius, sort="nearest"):
+            if e.type.rsplit(".", 1)[-1] in HOSTILES:
+                out.append(e)
+        return out
