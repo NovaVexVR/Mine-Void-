@@ -6,6 +6,7 @@ during surface work.
 """
 import importlib
 import json
+import math
 import os
 import socket
 import sys
@@ -158,8 +159,13 @@ class Agent:
                     "args": {"pos": death[0]}}
         elif (g.health() < 8 or unarmed) and (g.hostiles(10) or g.is_night()) \
                 and task["skill"] != "shelter":
-            # Badly hurt, or empty-handed after a respawn, with mobs about.
-            task = {"id": "dig_in", "skill": "dig_in", "args": {}}
+            # Badly hurt, or empty-handed after a respawn, with mobs about:
+            # run for the (sealed) base if it is close, else dig in here.
+            base = self.facts.get("base")
+            if base and math.dist(g.pos(), base) < 48:
+                task = {"id": "shelter", "skill": "shelter", "args": {}}
+            else:
+                task = {"id": "dig_in", "skill": "dig_in", "args": {}}
         else:
             self.recovering = False
         if task["skill"] in ("recover", "dig_in"):

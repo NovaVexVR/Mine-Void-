@@ -210,6 +210,9 @@ class Coordinator:
         for rule in self.goal.get("sharing", []):
             item, give = rule["item"], rule["give"]
             floor = rule.get("keep", 0)
+            if "giver_done" in rule and \
+                    name not in self.done.get(rule["giver_done"], []):
+                continue
             if "keep_unless_have" in rule and count(inv, rule["keep_unless_have"]):
                 floor = 0
             if count(inv, item) - give < floor:
@@ -218,6 +221,8 @@ class Coordinator:
                 oinv = b.get("inventory", {})
                 if (other == name or dist(b) > 400 or b.get("health", 0) <= 0
                         or count(oinv, item) >= rule["low"]
+                        or ("to_not_done" in rule
+                            and other in self.done.get(rule["to_not_done"], []))
                         or ("skip_if_have" in rule
                             and count(oinv, rule["skip_if_have"]))):
                     continue
@@ -249,8 +254,8 @@ class Coordinator:
             return None
         urgent = self.teamwork(name, inv, report.get("pos"),
                                report.get("night", False))
-        if urgent and urgent["skill"] != "deliver":
-            return None
+        if urgent:
+            return None  # helping/supplying a teammate comes first
         for p in self.goal["phases"]:
             for t in p["tasks"]:
                 if t.get("preempt") and t["id"] != task["id"] \
