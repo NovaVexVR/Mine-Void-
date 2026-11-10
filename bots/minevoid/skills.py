@@ -191,6 +191,36 @@ def smelt(g, facts, input, output, count):
     return g.count(matcher(output)) >= n
 
 
+def farm_spots(g, radius=20):
+    """Tillable blocks level with, and within 3 blocks of, open water near
+    the bot (farmland stays hydrated up to 4 blocks from water). Returns the
+    cluster around the spot nearest to the bot."""
+    px, py, pz = g.block_pos()
+    lo = [px - radius, py - 10, pz - radius]
+    hi = [px + radius, py + 5, pz + radius]
+    region = m.get_block_region(lo, hi)
+    at = lambda x, y, z: short(region.get_block(x, y, z))
+    inside = lambda x, z: lo[0] <= x <= hi[0] and lo[2] <= z <= hi[2]
+    found = set()
+    for x in range(lo[0], hi[0] + 1):
+        for z in range(lo[2], hi[2] + 1):
+            for y in range(lo[1], hi[1]):
+                if at(x, y, z) != "water" or at(x, y + 1, z) != "air":
+                    continue
+                for dx in range(-3, 4):
+                    for dz in range(-3, 4):
+                        c = (x + dx, y, z + dz)
+                        if (inside(c[0], c[2]) and c not in found
+                                and at(*c) in ("grass_block", "dirt")
+                                and at(c[0], y + 1, c[2]) in ("air", "short_grass")):
+                            found.add(c)
+    if not found:
+        return []
+    anchor = min(found, key=lambda c: math.dist(c, (px, py, pz)))
+    return sorted((c for c in found if math.dist(c, anchor) <= 7),
+                  key=lambda c: math.dist(c, anchor))
+
+
 def build_farm(g, facts, plots=8):
     """Wheat farm next to natural water: collect seeds, till, plant.
     Harvest later with Baritone's `farm` process."""
@@ -200,30 +230,15 @@ def build_farm(g, facts, plots=8):
     if g.count(seeds) < plots and not gather(g, facts, "grass", "wheat_seeds", plots, 420):
         if g.count(seeds) < 2:
             return False
-    g.status = "looking for water"
-    g.b("goto water")
-    g.sleep(2)
-    g.wait(lambda: not g.busy(), 180, 1)
-    g.stop()
-    px, py, pz = g.block_pos()
-    region = m.get_block_region([px - 6, py - 3, pz - 6], [px + 6, py + 2, pz + 6])
-    tillable = ("grass_block", "dirt")
     spots = []
-    for x in range(px - 6, px + 7):
-        for y in range(py - 3, py + 2):
-            for z in range(pz - 6, pz + 7):
-                if short(region.get_block(x, y, z)) != "water":
-                    continue
-                for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (-2, 0),
-                               (0, 2), (0, -2), (1, 1), (-1, -1), (1, -1), (-1, 1)):
-                    c = (x + dx, y, z + dz)
-                    inside = (abs(c[0] - px) <= 6 and abs(c[2] - pz) <= 6
-                              and c[1] + 1 <= py + 2)
-                    if (inside and c not in spots
-                            and short(region.get_block(*c)) in tillable
-                            and short(region.get_block(c[0], c[1] + 1, c[2]))
-                            in ("air", "short_grass")):
-                        spots.append(c)
+    for attempt in range(8):
+        g.status = "looking for water"
+        spots = farm_spots(g)
+        if len(spots) >= 2:
+            break
+        g.b("explore")
+        g.sleep(25)
+        g.stop()
     planted = []
     for x, y, z in spots:
         if len(planted) >= plots or g.count(seeds) == 0:

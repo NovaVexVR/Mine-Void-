@@ -354,6 +354,19 @@ class Game:
         time.sleep(0.1)
         m.player_press_attack(False)
 
+    def eat(self):
+        """Eat one food item (Meteor's Auto Eat only sees the hotbar)."""
+        from .items import CLASSES
+        cooked = lambda i: CLASSES["food"](i) and i not in ("chicken", "rabbit")
+        if not (self.select(lambda i: i.startswith("cooked_") or i == "bread")
+                or self.select(cooked) or self.select(CLASSES["food"])):
+            return False
+        m.player_set_orientation(m.player_orientation()[0], -30)  # not at a block
+        m.player_press_use(True)
+        time.sleep(2.2)
+        m.player_press_use(False)
+        return True
+
     def fight(self, radius=6, timeout=25):
         """Stand and fight until no hostile is within `radius`."""
         end = time.time() + timeout

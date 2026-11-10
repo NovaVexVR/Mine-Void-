@@ -36,7 +36,7 @@ Needs Java 21, Python 3.10+, Xvfb and Mesa (software OpenGL).
 |---|---|---|
 | Server | `server/`, `scripts/setup-server.sh` | Paper 1.21.11. **GrimAC** anti-cheat, Paper **anti-xray engine-mode 2** (hidden blocks become fake ores), LuckPerms, EssentialsX, CoreProtect, Chunky. Offline mode, bound to `127.0.0.1`, whitelist on. |
 | Client | `client/install.py`, `client/launch.py` | Vanilla client + Fabric loader fetched from Mojang/Fabric. Mods: Meteor Client, Baritone, Minescript, Fabric API, Sodium, Lithium, FerriteCore. One game dir and one Xvfb display per bot. |
-| Bot brain | `bots/agent.py`, `bots/minevoid/` | Minescript autoruns the agent on join. `game.py` wraps Minescript/Baritone/Meteor, `craft.py` crafts by clicking real inventory slots, `skills.py` holds the skills. |
+| Bot brain | `bots/agent.py`, `bots/minevoid/` | Minescript autoruns the agent on join. `brain.py` is the report/assign/act loop, `game.py` wraps Minescript/Baritone/Meteor, `craft.py` crafts by clicking real inventory slots, `skills.py` holds the skills. |
 | Coordinator | `coordinator/coordinator.py` | Reads the goal plan, assigns each bot the first unfinished task it may take, keeps shared facts (base location, ...). |
 
 ### The goal plan
