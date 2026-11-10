@@ -71,6 +71,10 @@ class Game:
         # Kill Aura only at monsters (its default target is players).
         aura = [h for h in HOSTILES if h not in ("enderman", "piglin_brute")]
         m.chat(".settings kill-aura entities " + ",".join(aura))
+        # GrimAC cancels hits from beyond vanilla reach (3 blocks), so a
+        # longer aura range just wastes swings.
+        m.chat(".settings kill-aura range 2.9")
+        m.chat(".settings kill-aura walls-range 2.9")
         for mod in METEOR_MODULES:
             m.chat(f".toggle {mod} on")
 
@@ -393,7 +397,7 @@ class Game:
                 self.close_screen()
                 self.select(lambda i: i.endswith("_sword") or i.endswith("_axe"))
                 fought = True
-            if math.dist(foes[0].position, self.pos()) <= 3.6:
+            if math.dist(foes[0].position, self.pos()) <= 2.9:
                 self.attack(foes[0])
                 time.sleep(0.55)
             else:

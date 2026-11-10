@@ -61,9 +61,18 @@ Switch goal while everything is running:
 curl -X POST localhost:8765/goal -d '{"file": "goals/my_goal.json"}'
 ```
 
+* `team_have` – done once the whole team holds that much **per bot**.
+* `requires` / `repeat` – only for bots that hold something (e.g. raw iron).
+
+The plan's `sharing` rules make it a team effort: a bot holding spare food or
+iron walks to a teammate who is short and hands it over, a bot in trouble
+gets the nearest teammate sent to `assist`, and everyone stays within a
+leash of home so they can reach each other.
+
 Skills available to plans: `gather`, `craft`, `hunt`, `build_base`,
-`build_farm`, `smelt`, `shelter`, `idle` (see `bots/minevoid/skills.py`).
-Bots defend themselves against hostile mobs in the background of every skill.
+`build_farm`, `smelt`, `shelter`, `deliver`, `assist`, `idle` (see
+`bots/minevoid/skills.py`). Bots eat, defend themselves, dig in when badly
+hurt and recover their gear after dying in the background of every skill.
 
 ### Scaling
 
@@ -84,10 +93,29 @@ scripts/mc-cmd.sh "time set day"      # server console command
 
 ## Status
 
-See the bottom of this file's history / the PR description for what has been
-verified in a live run. Phases after iron (diamonds, Nether, blaze rods, ender
-pearls, stronghold, dragon) are listed in the plan as `todo` and have no
-skills yet.
+Verified in live runs with three bots:
+
+* server + anti-cheat + anti-xray, headless clients joining, autorun agent
+* wood -> wooden tools -> stone tools (about 6-8 minutes per bot from nothing)
+* hunting, eating, night shelter, underground base room with table + chest
+* legit iron mining, smelting, iron pickaxe and sword (one bot, ~15 minutes)
+* role split by the coordinator (hunter / base builder / farmer / miners),
+  home leash, recovery after death
+
+Written but not yet seen working end to end: item hand-offs (`deliver`),
+`assist`, and the wheat farm. Phases after iron (diamonds, Nether, blaze
+rods, ender pearls, stronghold, dragon) are `todo` in the plan with no skills.
+
+Known problems:
+
+* **Nights kill bots.** Unarmoured bots die to mob packs, and mobs camp the
+  world spawn so a respawning bot can die repeatedly. Next steps: beds (skip
+  the night, move the spawn point into the base), shields and iron armour.
+* GrimAC cancels attacks from beyond 3 blocks (`Reach`), so attack range is
+  capped at 2.9. Its `Simulation` (movement) check also fired in two bursts
+  on one bot early on; the cause was not pinned down.
+* Reflection calls from Minescript are slow (a craft takes 5-20 s). A small
+  purpose-built Fabric mod would make inventory work instant.
 
 ## Notes
 
