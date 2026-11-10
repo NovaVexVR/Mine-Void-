@@ -270,24 +270,26 @@ class Coordinator:
         first_surface = self.teamwork(name, inv, pos, night)
         if first_surface:
             return first_surface
-        for phase in self.goal["phases"]:
-            for task in phase["tasks"]:
-                if self.satisfied(task, name, inv):
+        phases = self.goal["phases"]
+        ordered = [(p, t) for p in phases for t in p["tasks"] if t.get("preempt")] + \
+                  [(p, t) for p in phases for t in p["tasks"] if not t.get("preempt")]
+        for phase, task in ordered:
+            if self.satisfied(task, name, inv):
+                continue
+            if task["scope"] == "team":
+                others = [h for h in self.holders(task["id"], now) if h != name]
+                if len(others) >= task.get("slots", 1):
                     continue
-                if task["scope"] == "team":
-                    others = [h for h in self.holders(task["id"], now) if h != name]
-                    if len(others) >= task.get("slots", 1):
-                        continue
-                task = self.kit_task(dict(task, phase=phase["id"]), inv)
-                if task is None:
-                    continue
-                if "count_per_bot" in task:
-                    task["args"] = dict(task["args"], count=task["count_per_bot"]
-                                        * max(1, len(self.active())))
-                if night and task.get("surface"):
-                    first_surface = first_surface or task
-                    continue
-                return task
+            task = self.kit_task(dict(task, phase=phase["id"]), inv)
+            if task is None:
+                continue
+            if "count_per_bot" in task:
+                task["args"] = dict(task["args"], count=task["count_per_bot"]
+                                    * max(1, len(self.active())))
+            if night and task.get("surface"):
+                first_surface = first_surface or task
+                continue
+            return task
         return first_surface or dict(self.goal["fallback"], phase="fallback")
 
     # -- endpoints ---------------------------------------------------------
