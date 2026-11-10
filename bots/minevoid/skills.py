@@ -286,25 +286,33 @@ def bed(g, facts):
     x, y, z = facts["base"]
     wool = lambda: max((n for i, n in g.inv().items() if i.endswith("_wool")),
                        default=0)
-    while not g.count(CLASSES["bed"]):
-        if wool() >= 3:
-            colour = max((i for i in g.inv() if i.endswith("_wool")),
-                         key=lambda i: g.inv()[i])[:-len("_wool")]
-            if not crafting.craft(g, f"{colour}_bed"):
-                return False
-        elif not hunt(g, facts, count=g.count(CLASSES["wool"]) + 1,
-                      animals="sheep", item="wool", timeout=480):
+    while not g.count(CLASSES["bed"]) and wool() < 3:
+        if not hunt(g, facts, count=g.count(CLASSES["wool"]) + 1,
+                    animals="sheep", item="wool", timeout=480):
             return False  # no sheep found this time
-    bed_item = next(i for i in g.inv() if i.endswith("_bed"))
-    g.status = "placing bed in base"
-    if not g.goto(x, y, z, timeout=300, near=1):
+    # Craft at the base: it has a crafting table, and we may be standing
+    # somewhere with no room to put one down (e.g. a night-time hole).
+    g.status = "taking wool home for a bed"
+    if not g.goto(x, y, z, timeout=400, near=1):
         return False
     fix_base(g, facts)
+    if not g.count(CLASSES["bed"]):
+        colour = max((i for i in g.inv() if i.endswith("_wool")),
+                     key=lambda i: g.inv()[i])[:-len("_wool")]
+        if not crafting.craft(g, f"{colour}_bed"):
+            return False
+    bed_item = next(i for i in g.inv() if i.endswith("_bed"))
+    g.status = "placing bed in base"
     for dx in BED_SLOTS:
         foot, head, stand = (x + dx, y, z + 1), (x + dx, y, z + 2), (x + dx, y, z - 1)
         if not all(g.block(*c) in AIR for c in (foot, head, stand)):
             continue
-        if not g.place_at(bed_item, *foot, stand=stand):
+        # A bed points the way we face, so stand exactly north of the foot
+        # (facing south) or the bed ends up sideways and blocks other slots.
+        g.goto(*stand, timeout=40)
+        if g.block_pos()[::2] != [stand[0], stand[2]]:
+            continue
+        if not g.place_at(bed_item, *foot):
             continue
         g.use_on(foot[0] + 0.5, foot[1] + 0.4, foot[2] + 0.5)  # set spawn
         g.close_screen()

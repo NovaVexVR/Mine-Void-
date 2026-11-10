@@ -477,7 +477,13 @@ class Game:
                 self.select(lambda i: i.endswith("_sword") or i.endswith("_axe"))
                 fought = True
             d = math.dist(foes[0].position, self.pos())
-            if d <= 2.9:
+            if foes[0].type.endswith("creeper") and d <= 3.5:
+                # Hit once for knockback, then back off before it blows.
+                self.attack(foes[0])
+                m.player_press_backward(True)
+                time.sleep(0.9)
+                m.player_press_backward(False)
+            elif d <= 2.9:
                 self.attack(foes[0])
                 time.sleep(0.55)
             elif foes[0].type.endswith(("skeleton", "stray", "bogged")):
