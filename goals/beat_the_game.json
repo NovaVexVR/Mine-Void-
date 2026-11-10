@@ -17,7 +17,7 @@
   ]},
   {"id": "food", "title": "Food", "tasks": [
    {"id": "fish", "scope": "team", "slots": 1, "skill": "fish", "needs_fact": "base", "requires_any": [{"fishing_rod": 1}, {"string": 2}], "team_have": {"food": 8}, "args": {"count": 20}, "note": "endless food from water near the base once someone has string for a rod"},
-   {"id": "hunt", "scope": "team", "slots": 1, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules hand the meat out"},
+   {"id": "hunt", "scope": "team", "slots": 2, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules hand the meat out"},
    {"id": "cook", "scope": "each", "skill": "smelt", "needs_fact": "base", "requires": {"raw_meat": 3}, "args": {"input": "raw_meat", "output": "cooked_food", "count": 64}, "repeat": true}
   ]},
   {"id": "base", "title": "Underground base", "tasks": [

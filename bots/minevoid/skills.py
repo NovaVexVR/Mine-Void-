@@ -177,7 +177,8 @@ def dig_in(g, facts):
     """Badly hurt with mobs about: hide underground, eat, heal up."""
     g.status = "hurt - digging in to recover"
     seal_in(g)
-    g.wait(lambda: g.health() >= 16 or g.health() <= 0, 240, 2)
+    g.wait(lambda: g.health() <= 0 or (g.health() >= 16 and not g.hostiles(10)),
+           240, 2)
     return True
 
 
@@ -291,9 +292,9 @@ def bed(g, facts):
                          key=lambda i: g.inv()[i])[:-len("_wool")]
             if not crafting.craft(g, f"{colour}_bed"):
                 return False
-        elif not hunt(g, facts, count=3, animals="sheep", item="white_wool",
-                      timeout=480) and wool() < 3:
-            return False
+        elif not hunt(g, facts, count=g.count(CLASSES["wool"]) + 1,
+                      animals="sheep", item="wool", timeout=480):
+            return False  # no sheep found this time
     bed_item = next(i for i in g.inv() if i.endswith("_bed"))
     g.status = "placing bed in base"
     if not g.goto(x, y, z, timeout=300, near=1):

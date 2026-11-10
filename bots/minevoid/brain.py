@@ -81,7 +81,10 @@ class Agent:
             self.last_alive_pos = g.block_pos()
         # Health only regenerates at 18+ food, so eat sooner when hurt.
         hungry = g.hunger() <= (17 if hp < 16 else 14)
-        if now - getattr(self, "last_eat", 0) > 6 and hungry and not m.screen_name():
+        edible = g.count(items.CLASSES["food"]) or (
+            g.hunger() <= 8 and g.count(lambda i: i == "rotten_flesh"))
+        if now - getattr(self, "last_eat", 0) > 6 and hungry and edible \
+                and not m.screen_name():
             self.last_eat = now
             g.b("pause")
             try:
@@ -142,14 +145,21 @@ class Agent:
             return
         self.assigned = task["id"]  # what the coordinator thinks we do
         death = getattr(self, "death", None)
-        if death and death[0] and time.time() - death[1] < 240 and not g.is_night():
-            # Dropped items last five minutes: go and pick our gear back up.
+        unarmed = g.count(items.CLASSES["sword"]) == 0
+        if death and death[0] and time.time() - death[1] < 240 \
+                and not g.is_night() and not getattr(self, "recovering", False):
+            # Dropped items last five minutes: go and pick our gear back up,
+            # once. If that kills us too, the spot is camped: leave it.
             self.death = None
+            self.recovering = True
             task = {"id": "recover_gear", "skill": "recover",
                     "args": {"pos": death[0]}}
-        elif g.health() < 8 and (g.hostiles(12) or g.is_night()):
+        elif (g.health() < 8 or unarmed) and (g.hostiles(10) or g.is_night()) \
+                and task["skill"] != "shelter":
+            # Badly hurt, or empty-handed after a respawn, with mobs about.
             task = {"id": "dig_in", "skill": "dig_in", "args": {}}
-        unarmed = g.count(items.CLASSES["sword"]) == 0
+        else:
+            self.recovering = False
         if task["skill"] in ("recover", "dig_in"):
             pass
         elif g.is_night() and (task.get("surface") or unarmed
@@ -207,5 +217,9 @@ class Agent:
             exec(code.decode(), env)
         except Exception:
             out.append(traceback.format_exc())
-        conn.sendall("\n".join(out).encode() + b"\n")
-        conn.close()
+        try:
+            conn.sendall("\n".join(out).encode() + b"\n")
+        except OSError:
+            pass  # the caller gave up waiting
+        finally:
+            conn.close()
