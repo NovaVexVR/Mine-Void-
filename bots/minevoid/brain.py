@@ -100,7 +100,8 @@ class Agent:
                 if task["id"] != self.assigned:
                     raise game.TaskChanged(task["id"])
                 if g.is_night() and (self.task.get("surface")
-                                     or "base" in self.facts):
+                                     or ("base" in self.facts
+                                         and not self.task.get("at_base"))):
                     raise game.TaskChanged("night")
 
     # -- main loop ---------------------------------------------------------
@@ -164,7 +165,7 @@ class Agent:
         if task["skill"] in ("recover", "dig_in"):
             pass
         elif g.is_night() and (task.get("surface") or unarmed
-                               or "base" in self.facts):
+                               or ("base" in self.facts and not task.get("at_base"))):
             # With a base, the whole team goes home to sleep: mining at
             # night got bots killed, and sleeping skips the night anyway.
             # Surface work waits for daylight, and so does a bot that just

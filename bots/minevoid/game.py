@@ -355,6 +355,37 @@ class Game:
         self.log(f"could not place {name} at {[x, y, z]}")
         return False
 
+    SOFT = ("air", "cave_air", "water", "lava", "short_grass", "tall_grass",
+            "fern", "snow", "torch", "wall_torch", "vine", "leaf_litter")
+    FACES = {(0, -1, 0): "up", (0, 1, 0): "down", (1, 0, 0): "west",
+             (-1, 0, 0): "east", (0, 0, 1): "north", (0, 0, -1): "south"}
+
+    def place_against(self, name, x, y, z):
+        """Place `name` at (x, y, z) by clicking whichever face of a solid
+        neighbour we can see: works for wall gaps and shaft openings where
+        there is no floor to click."""
+        placed = lambda: self.block(x, y, z) == name
+        for attempt in range(2):
+            for (dx, dy, dz), side in self.FACES.items():
+                n = (x + dx, y + dy, z + dz)
+                if self.block(*n) in self.SOFT or self.block(*n).endswith("_bed"):
+                    continue
+                if not self.select(lambda i: i == name):
+                    return False
+                m.player_look_at(x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5,
+                                 z + 0.5 + dz * 0.5)
+                time.sleep(0.3)
+                hit = m.player_get_targeted_block(4.5)
+                if hit and list(hit.position) == list(n) and hit.side == side:
+                    m.player_press_use(True)
+                    time.sleep(0.25)
+                    m.player_press_use(False)
+                    if self.wait_plain(placed, 1.0):
+                        return True
+            if attempt == 0:
+                self.goto_near(x, y, z, radius=2, timeout=20)
+        return False
+
     def equip_offhand(self, name):
         """Move an item (a shield) into the off-hand slot."""
         stack = next((s for s in m.player_inventory()

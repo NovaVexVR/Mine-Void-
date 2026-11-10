@@ -50,6 +50,13 @@ def gather(g, facts, blocks, item, count, timeout=900):
             g.stop()
             return False
         come_home(g, facts)
+        base = facts.get("base")
+        if base and blocks != "logs" and math.dist(g.pos(), base) < 24:
+            # Do not quarry the base itself (bots mined its roof away).
+            g.status = "leaving the base to dig"
+            g.b(f"goto {base[0] + 40} {base[2]}")
+            g.wait(lambda: math.dist(g.pos(), base) >= 24 or not g.busy(), 90, 1)
+            g.stop()
         g.status = f"gathering {blocks} {g.count(pred)}/{count}"
         if not g.baritone.getMineProcess().isActive():
             g.b("mine " + names)
@@ -146,6 +153,7 @@ def shelter(g, facts):
     base = facts.get("base")
     if base and math.dist(g.pos(), base) < LEASH \
             and g.goto(*base, timeout=180, near=2):
+        seal_base(g, facts)
         bed = facts.get(f"bed_{g.name}")
         last_try = 0
 
@@ -271,6 +279,64 @@ def fix_base(g, facts):
             continue
         if g.count(lambda i: i == item) or crafting.craft(g, item):
             g.place_at(item, x + dx, y, z - 2, stand=(x, y, z))
+
+
+FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
+           "granite", "tuff", "netherrack")
+
+
+def base_openings(g, base):
+    """Air cells of the base's enclosure that connect to the outside: flood
+    fill the air from the room centre inside a box one block larger than
+    the room (plus head room), and report cells with air beyond the box."""
+    x, y, z = base
+    lo, hi = (x - 3, y - 2, z - 3), (x + 3, y + 4, z + 3)  # closed floor pits are fine
+    # (get_block_region returns empty entries away from the player;
+    # getblocklist reads the same positions reliably in one call.)
+    cells = [(cx, cy, cz) for cx in range(lo[0] - 1, hi[0] + 2)
+             for cy in range(lo[1] - 1, hi[1] + 2)
+             for cz in range(lo[2] - 1, hi[2] + 2)]
+    kinds = dict(zip(cells, m.getblocklist([list(c) for c in cells])))
+    air = lambda c: short(kinds.get(c)) in AIR
+    inside = lambda c: all(lo[i] <= c[i] <= hi[i] for i in range(3))
+    seen, todo, leaks = {(x, y, z)}, [(x, y, z)], []
+    while todo:
+        c = todo.pop()
+        for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+            n = (c[0] + d[0], c[1] + d[1], c[2] + d[2])
+            if not air(n):
+                continue
+            if not inside(n):
+                if c not in leaks and c[1] >= y:
+                    leaks.append(c)
+            elif n not in seen:
+                seen.add(n)
+                todo.append(n)
+    return leaks
+
+
+def seal_base(g, facts):
+    """Close every opening between the base and the outside (our own
+    tunnels and shafts) so mobs cannot get in at night. Baritone digs a new
+    way out in the morning; whoever shelters next seals it again."""
+    x, y, z = facts["base"]
+    filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
+    for _ in range(3):
+        leaks = base_openings(g, (x, y, z))
+        if not leaks:
+            return True
+        if filler_count() < len(leaks):
+            g.log("not enough blocks to seal the base")
+            return False
+        g.status = f"sealing base ({len(leaks)} openings)"
+        g.goto(x, y, z, timeout=30, near=1)
+        for c in sorted(leaks, key=lambda c: c[1]):  # bottom up
+            filler = max(FILLERS, key=lambda i: g.count(lambda j, i=i: j == i))
+            g.place_against(filler, *c)
+        g.goto(x, y, z, timeout=30, near=1)
+    left = base_openings(g, (x, y, z))
+    g.log(f"base sealing: {len(left)} openings left")
+    return not left
 
 
 BED_SLOTS = (0, -1, 1, -2, 2)
@@ -563,4 +629,5 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "deliver": deliver, "assist": assist, "idle": idle,
           "dig_in": dig_in, "recover": recover,
           "light_base": light_base, "bed": bed, "fish": fish,
+          "seal_base": seal_base,
           "harvest": harvest}
