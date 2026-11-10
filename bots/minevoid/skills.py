@@ -172,8 +172,39 @@ def shelter(g, facts):
     return True
 
 
+def dry_spot(g, radius=8):
+    """A column near us where digging 3 down will not let water or lava in:
+    solid all the way down and no liquid next to it."""
+    x, y, z = g.block_pos()
+    wet = ("water", "lava", "bubble_column", "seagrass", "tall_seagrass", "kelp",
+           "kelp_plant")
+    best = None
+    for cx in range(x - radius, x + radius + 1):
+        for cz in range(z - radius, z + radius + 1):
+            d = math.dist((cx, cz), (x, z))
+            if best and d >= best[0]:
+                continue
+            col = [(cx, y - k, cz) for k in range(1, 5)]
+            around = [(cx + dx, y - k, cz + dz) for k in range(0, 5)
+                      for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+            kinds = m.getblocklist([list(c) for c in col + around + [(cx, y, cz)]])
+            kinds = [short(k) for k in kinds]
+            if any(k in wet for k in kinds):
+                continue
+            if any(k in AIR for k in kinds[:len(col)]):
+                continue  # cave or overhang below
+            best = (d, (cx, y, cz))
+    return best and best[1]
+
+
 def seal_in(g):
-    """Dig three blocks down and close the hole above our head."""
+    """Dig three blocks down (somewhere dry) and close the hole above."""
+    spot = dry_spot(g)
+    if spot is None:
+        g.log("no dry spot to dig in nearby, staying put")
+        return
+    if spot[::2] != tuple(g.block_pos())[::2]:
+        g.goto(*spot, timeout=30)
     x, y, z = g.block_pos()
     g.goto(x, y - 3, z, timeout=60)
     x, y, z = g.block_pos()
