@@ -47,7 +47,7 @@
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},
  "sharing": [
   {"item": "food", "low": 1, "keep": 2, "give": 2},
-  {"item": "wool", "low": 3, "keep": 0, "give": 3, "giver_done": "bed", "to_not_done": "bed", "note": "spare wool goes to whoever still needs a bed"}
+  {"item": "wool", "need_spec": "bed_material", "low": 1, "keep": 0, "give": 3, "min_give": 1, "giver_done": "bed", "to_not_done": "bed", "note": "spare wool goes to whoever still needs a bed"}
  ],
  "fallback": {"id": "stockpile_wood", "skill": "gather", "surface": true, "args": {"blocks": "logs", "item": "log", "count": 32}}
 }

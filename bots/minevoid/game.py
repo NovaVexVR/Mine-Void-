@@ -469,13 +469,18 @@ class Game:
         self.close_screen()
         self.sync_menu()
         thrown = 0
-        for s in m.player_inventory():
+        stacks = [s for s in m.player_inventory() if s.slot < 36 and pred(short(s.item))]
+        totals = {}
+        for s in stacks:
+            totals[short(s.item)] = totals.get(short(s.item), 0) + s.count
+        # Most plentiful kind first, so e.g. wool arrives as one colour.
+        stacks.sort(key=lambda s: -totals[short(s.item)])
+        for s in stacks:
             if thrown >= n:
                 break
-            if s.slot < 36 and pred(short(s.item)):
-                for _ in range(min(n - thrown, s.count)):
-                    self.click(self.menu_slot(s.slot, None), 0, "THROW")
-                    thrown += 1
+            for _ in range(min(n - thrown, s.count)):
+                self.click(self.menu_slot(s.slot, None), 0, "THROW")
+                thrown += 1
         return thrown
 
     def eat(self):

@@ -215,12 +215,13 @@ class Coordinator:
                 continue
             if "keep_unless_have" in rule and count(inv, rule["keep_unless_have"]):
                 floor = 0
-            if count(inv, item) - give < floor:
+            give = min(give, count(inv, item) - floor)
+            if give < rule.get("min_give", rule["give"]):
                 continue
             for other, b in sorted(team.items(), key=lambda kv: dist(kv[1])):
                 oinv = b.get("inventory", {})
                 if (other == name or dist(b) > 400 or b.get("health", 0) <= 0
-                        or count(oinv, item) >= rule["low"]
+                        or count(oinv, rule.get("need_spec", item)) >= rule["low"]
                         or ("to_not_done" in rule
                             and other in self.done.get(rule["to_not_done"], []))
                         or ("skip_if_have" in rule
