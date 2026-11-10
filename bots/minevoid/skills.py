@@ -76,18 +76,27 @@ def gather(g, facts, blocks, item, count, timeout=900):
 crafting.gather_hook = lambda g, blocks, item, n: gather(g, {}, blocks, item, n)
 
 
+ARMOR = ("_helmet", "_chestplate", "_leggings", "_boots")
+
+
 def craft(g, facts, item, count=1):
-    return crafting.craft(g, item, count)
+    ok = crafting.craft(g, item, count)
+    if ok and item == "shield":
+        g.equip_offhand("shield")
+    elif ok and item.endswith(ARMOR):
+        g.sleep(1)  # give Meteor's Auto Armor a moment first
+        g.equip_armor(item)
+    return ok
 
 
-def hunt(g, facts, count=6, timeout=600):
-    """Kill passive animals until `count` food items are held."""
-    food = CLASSES["food"]
+def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
+    """Kill animals until `count` items matching `item` are held."""
+    food = matcher(item)
     end, misses = time.time() + timeout, 0
     while g.count(food) < count and time.time() < end:
         come_home(g, facts)
-        g.status = f"hunting {g.count(food)}/{count}"
-        prey = m.entities(type=f".*\\.({ANIMALS})$", max_distance=60,
+        g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
+        prey = m.entities(type=f".*\\.({animals})$", max_distance=60,
                           sort="nearest", limit=1)
         if not prey:
             misses += 1
@@ -105,7 +114,7 @@ def hunt(g, facts, count=6, timeout=600):
                 break  # dead (or gone)
             pos = cur[0].position
             me = g.pos()
-            if math.dist(me, pos) > 3.0:
+            if math.dist(me, pos) > 2.8:
                 if time.time() - last_goto > 1.5:
                     g.b("goto %d %d %d" % tuple(math.floor(v) for v in pos))
                     last_goto = time.time()
@@ -120,15 +129,28 @@ def hunt(g, facts, count=6, timeout=600):
 
 
 def shelter(g, facts):
-    """Sit out the night: go to the base if there is one, otherwise dig a
+    """Sit out the night. With a base: go there and sleep in our bed (which
+    skips the night once enough of the team is in bed). Without one: dig a
     3-deep hole and seal it."""
     g.status = "sheltering for the night"
-    if "base" in facts and math.dist(g.pos(), facts["base"]) < 120 \
-            and g.goto(*facts["base"], timeout=180, near=2):
-        pass  # the team spends the night together in the base
+    base = facts.get("base")
+    if base and math.dist(g.pos(), base) < LEASH \
+            and g.goto(*base, timeout=180, near=2):
+        bed = facts.get(f"bed_{g.name}")
+        last_try = 0
+
+        def morning():
+            nonlocal last_try
+            if bed and not g.sleeping() and time.time() - last_try > 8 \
+                    and not g.hostiles(8):
+                last_try = time.time()
+                g.status = "going to sleep"
+                g.use_on(bed[0] + 0.5, bed[1] + 0.4, bed[2] + 0.5)
+            return not g.is_night()
+        g.wait(morning, 700, 2)
     else:
         seal_in(g)
-    g.wait(lambda: not g.is_night(), 700, 2)
+        g.wait(lambda: not g.is_night(), 700, 2)
     return True
 
 
@@ -192,15 +214,70 @@ def build_base(g, facts, depth=8, size=5):
         g.log("could not reach base room")
         return False
     g.status = "furnishing base"
-    # Mining the room gave us plenty of cobble; restock what the dig used.
-    for item in ("crafting_table", "furnace", "chest"):
+    # Fixed layout (room is x-2..x+2, z-2..z+2):
+    #   north row z-2: crafting table, furnace, chest
+    #   row z:         torches on the east/west walls (light_base)
+    #   rows z+1/z+2:  beds, foot at z+1, head at z+2
+    for item, dx in (("crafting_table", -1), ("furnace", 0), ("chest", 1)):
         if g.count(lambda i: i == item) < 1 and not crafting.craft(g, item):
             g.log(f"base: could not craft {item}")
             continue
-        g.place_block(item)
-    if g.count(CLASSES["coal"]) and crafting.craft(g, "torch"):
-        g.place_block("torch")
+        if not g.place_at(item, x + dx, floor, z - 2, stand=(x, floor, z)):
+            g.place_block(item)
     return {"base": [x, floor, z]}
+
+
+def light_base(g, facts, torches=4):
+    """Light the base so no mobs spawn inside it."""
+    x, y, z = facts["base"]
+    if g.count(lambda i: i == "torch") < 2:
+        if not g.count(CLASSES["coal"]) and \
+                not gather(g, facts, "coal", "coal|charcoal", 1, timeout=600):
+            return False
+        if not crafting.craft(g, "torch"):
+            return False
+    if not g.goto(x, y, z, timeout=240, near=1):
+        return False
+    g.status = "lighting the base"
+    lit = [g.place_at("torch", x + dx, y, z, stand=(x, y, z)) for dx in (-2, 2)]
+    return {"base_lit": True} if any(lit) else False
+
+
+BED_SLOTS = (0, -1, 1, -2, 2)
+AIR = ("air", "cave_air")
+
+
+def bed(g, facts):
+    """Get a bed (wool from sheep), put it in the base and sleep-click it
+    once so it becomes our respawn point."""
+    x, y, z = facts["base"]
+    wool = lambda: max((n for i, n in g.inv().items() if i.endswith("_wool")),
+                       default=0)
+    while not g.count(CLASSES["bed"]):
+        if wool() >= 3:
+            colour = max((i for i in g.inv() if i.endswith("_wool")),
+                         key=lambda i: g.inv()[i])[:-len("_wool")]
+            if not crafting.craft(g, f"{colour}_bed"):
+                return False
+        elif not hunt(g, facts, count=3, animals="sheep", item="white_wool",
+                      timeout=480) and wool() < 3:
+            return False
+    bed_item = next(i for i in g.inv() if i.endswith("_bed"))
+    g.status = "placing bed in base"
+    if not g.goto(x, y, z, timeout=300, near=1):
+        return False
+    for dx in BED_SLOTS:
+        foot, head, stand = (x + dx, y, z + 1), (x + dx, y, z + 2), (x + dx, y, z - 1)
+        if not all(g.block(*c) in AIR for c in (foot, head, stand)):
+            continue
+        if not g.place_at(bed_item, *foot, stand=stand):
+            continue
+        g.use_on(foot[0] + 0.5, foot[1] + 0.4, foot[2] + 0.5)  # set spawn
+        g.close_screen()
+        g.log(f"bed placed at {list(foot)}, respawn point set")
+        return {f"bed_{g.name}": list(foot)}
+    g.log("no free bed slot in the base")
+    return False
 
 
 def smelt(g, facts, input, output, count):
@@ -365,4 +442,5 @@ def idle(g, facts):
 SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "build_base": build_base, "smelt": smelt, "build_farm": build_farm,
           "deliver": deliver, "assist": assist, "idle": idle,
-          "dig_in": dig_in, "recover": recover}
+          "dig_in": dig_in, "recover": recover,
+          "light_base": light_base, "bed": bed}

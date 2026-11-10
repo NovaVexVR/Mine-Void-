@@ -90,11 +90,13 @@ class Agent:
                 g.b("resume")
         if now - self.last_report > 3:
             task = self.report()
-            if self.interruptible and task and self.task:
+            special = self.task and self.task["skill"] in ("shelter", "dig_in",
+                                                           "recover")
+            if self.interruptible and task and self.task and not special:
                 if task["id"] != self.assigned:
                     raise game.TaskChanged(task["id"])
-                if self.task.get("surface") and g.is_night() \
-                        and self.task["skill"] != "shelter":
+                if g.is_night() and (self.task.get("surface")
+                                     or "base" in self.facts):
                     raise game.TaskChanged("night")
 
     # -- main loop ---------------------------------------------------------
@@ -150,7 +152,10 @@ class Agent:
         unarmed = g.count(items.CLASSES["sword"]) == 0
         if task["skill"] in ("recover", "dig_in"):
             pass
-        elif g.is_night() and (task.get("surface") or unarmed):
+        elif g.is_night() and (task.get("surface") or unarmed
+                               or "base" in self.facts):
+            # With a base, the whole team goes home to sleep: mining at
+            # night got bots killed, and sleeping skips the night anyway.
             # Surface work waits for daylight, and so does a bot that just
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}

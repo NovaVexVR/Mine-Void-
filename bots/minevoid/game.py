@@ -322,6 +322,81 @@ class Game:
         self.log(f"could not open {name} at {pos}")
         return False
 
+    def place_at(self, name, x, y, z, stand=None):
+        """Place block `name` at exactly (x, y, z) by clicking the top of
+        the block below it, standing at `stand` (or anywhere in reach).
+        A bed's head goes one block further in the direction we face."""
+        placed = lambda: self.block(x, y, z) == name
+        if placed():
+            return True
+        for attempt in range(3):
+            if not self.select(lambda i: i == name):
+                return False
+            if stand and attempt == 0:
+                self.goto(*stand, timeout=40)
+            elif math.dist(self.pos(), (x + .5, y, z + .5)) > 3.5:
+                self.goto_near(x, y, z, radius=2, timeout=30)
+            m.player_look_at(x + 0.5, y - 0.01, z + 0.5)
+            time.sleep(0.4)
+            hit = m.player_get_targeted_block(4.5)
+            if not hit or list(hit.position) != [x, y - 1, z] or hit.side != "up":
+                kind = short(hit.type) if hit else ""
+                if hit and (kind.endswith("_leaves") or kind in (
+                        "short_grass", "tall_grass", "fern", "snow")):
+                    self.break_block(*hit.position, timeout=6)
+                else:
+                    self.goto_near(x, y, z, radius=1, timeout=20)
+                continue
+            m.player_press_use(True)
+            time.sleep(0.3)
+            m.player_press_use(False)
+            if self.wait_plain(placed, 1.5):
+                return True
+        self.log(f"could not place {name} at {[x, y, z]}")
+        return False
+
+    def equip_offhand(self, name):
+        """Move an item (a shield) into the off-hand slot."""
+        stack = next((s for s in m.player_inventory()
+                      if short(s.item) == name), None)
+        if stack is None or stack.slot == 40:
+            return stack is not None
+        self.close_screen()
+        self.sync_menu()
+        self.click(self.menu_slot(stack.slot, None))  # pick it up
+        self.click(45)                                 # off-hand slot
+        self.click(self.menu_slot(stack.slot, None))  # put back what was there
+        time.sleep(0.3)
+        return any(s.slot == 40 and short(s.item) == name
+                   for s in m.player_inventory())
+
+    def equip_armor(self, name):
+        """Shift-click a piece of armour into its slot (Meteor's Auto Armor
+        normally beats us to it)."""
+        stack = next((s for s in m.player_inventory()
+                      if short(s.item) == name), None)
+        if stack is None or stack.slot >= 36:
+            return stack is not None
+        self.close_screen()
+        self.sync_menu()
+        self.click(self.menu_slot(stack.slot, None), 0, "QUICK_MOVE")
+        return True
+
+    def block_with_shield(self, foe, seconds=1.2):
+        """Raise the shield towards an archer."""
+        if not any(s.slot == 40 and short(s.item) == "shield"
+                   for s in m.player_inventory()):
+            return False
+        x, y, z = foe.position
+        m.player_look_at(x, y + 1.4, z)
+        m.player_press_use(True)
+        time.sleep(seconds)
+        m.player_press_use(False)
+        return True
+
+    def sleeping(self):
+        return bool(self.mc.player.isSleeping())
+
     def aim(self, pos):
         """Look at a block and confirm the crosshair is really on it. If
         something is in the way, clear it (leaves, grass) or step closer."""
@@ -397,9 +472,12 @@ class Game:
                 self.close_screen()
                 self.select(lambda i: i.endswith("_sword") or i.endswith("_axe"))
                 fought = True
-            if math.dist(foes[0].position, self.pos()) <= 2.9:
+            d = math.dist(foes[0].position, self.pos())
+            if d <= 2.9:
                 self.attack(foes[0])
                 time.sleep(0.55)
+            elif foes[0].type.endswith(("skeleton", "stray", "bogged")):
+                self.block_with_shield(foes[0], 0.8) or time.sleep(0.2)
             else:
                 time.sleep(0.2)
         return fought

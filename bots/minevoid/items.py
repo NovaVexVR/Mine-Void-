@@ -13,6 +13,8 @@ CLASSES = {
     "pickaxe": lambda i: i.endswith("_pickaxe"),
     "sword": lambda i: i.endswith("_sword"),
     "food": lambda i: i in FOODS,
+    "wool": lambda i: i.endswith("_wool"),
+    "bed": lambda i: i.endswith("_bed"),
 }
 
 

@@ -25,10 +25,20 @@ RECIPES = {
     "torch": (("C", "S"), {"C": "coal", "S": "stick"}, 4),
     "bucket": (("I I", " I "), {"I": "iron_ingot"}, 1),
     "bread": (("WWW",), {"W": "wheat"}, 1),
+    "shield": (("PIP", "PPP", " P "), {"P": "planks", "I": "iron_ingot"}, 1),
+    "iron_helmet": (("III", "I I"), {"I": "iron_ingot"}, 1),
+    "iron_chestplate": (("I I", "III", "III"), {"I": "iron_ingot"}, 1),
+    "iron_leggings": (("III", "I I", "I I"), {"I": "iron_ingot"}, 1),
+    "iron_boots": (("I I", "I I"), {"I": "iron_ingot"}, 1),
 }
 for _mat, _ing in (("wooden", "planks"), ("stone", "stone"), ("iron", "iron_ingot")):
     for _tool, _pat in TOOL.items():
         RECIPES[f"{_mat}_{_tool}"] = (_pat, {"M": _ing, "S": "stick"}, 1)
+
+# Beds need three wool of one colour.
+for _c in ("white orange magenta light_blue yellow lime pink gray light_gray "
+           "cyan purple blue brown green red black").split():
+    RECIPES[f"{_c}_bed"] = (("WWW", "PPP"), {"W": f"{_c}_wool", "P": "planks"}, 1)
 
 # Raw materials a bot can go and get by itself: class -> (block group, count pad)
 RAW = {"log": "logs", "stone": "stone"}

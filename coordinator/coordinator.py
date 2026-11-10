@@ -69,10 +69,86 @@ class Coordinator:
         return sum(count(b.get("inventory", {}), spec)
                    for b in self.active().values())
 
+    # -- equipment kit -----------------------------------------------------
+    # The plan's "kit" lists gear every bot should end up with, in priority
+    # order, with its cost in the kit material (iron). Raw ore counts as
+    # material too: it only needs smelting.
+    def kit_missing(self, inv, upto=None):
+        kit = self.goal.get("kit", {}).get("items", [])
+        return [(item, cost) for item, cost in kit[:upto]
+                if count(inv, item) < 1]
+
+    def kit_held(self, inv, raw=True):
+        k = self.goal["kit"]
+        return count(inv, k["material"] + ("|" + k["raw"] if raw else ""))
+
+    def kit_need(self, inv, upto=None):
+        """Material still needed for the first `upto` kit items (negative
+        means spare material)."""
+        return sum(c for _, c in self.kit_missing(inv, upto)) - self.kit_held(inv)
+
+    def team_kit_need(self):
+        return sum(self.kit_need(b.get("inventory", {}))
+                   for b in self.active().values())
+
+    def kit_task(self, task, inv):
+        """Fill in kit tasks; None if there is nothing to do for this bot."""
+        if task.get("kit_mine"):
+            need = self.team_kit_need()
+            if need <= 0:
+                return None
+            have = count(inv, task["args"]["item"])
+            return dict(task, args=dict(task["args"],
+                                        count=have + min(need, task.get("trip", 10))))
+        if task.get("kit_craft"):
+            missing = self.kit_missing(inv)
+            if not missing:
+                return None
+            item, cost = missing[0]
+            if self.kit_held(inv, raw=False) < cost:
+                return None
+            return dict(task, id=f"craft_{item}", args={"item": item})
+        return task
+
+    def kit_delivery(self, name, inv, team, dist):
+        """Hand spare kit material to whoever needs it most, one tier at a
+        time: everybody gets a pickaxe before anybody gets a chestplate."""
+        kit = self.goal.get("kit")
+        if not kit:
+            return None
+        for tier in range(1, len(kit["items"]) + 1):
+            needy = {n: self.kit_need(b.get("inventory", {}), tier)
+                     for n, b in team.items()
+                     if n != name and b.get("health", 0) > 0}
+            needy = {n: v for n, v in needy.items() if v > 0}
+            if not needy:
+                continue
+            spare = min(-self.kit_need(inv, tier), self.kit_held(inv))
+            if spare <= 0:
+                return None  # someone needs this tier, but not from us
+            for other in sorted(needy, key=lambda n: dist(team[n])):
+                if dist(team[other]) > 400:
+                    continue
+                # Worth a trip: cover this tier and the next one if we can,
+                # and never walk over for less than a few ingots.
+                oinv = team[other].get("inventory", {})
+                want = self.kit_need(oinv, min(tier + 1, len(kit["items"])))
+                give = min(spare, want)
+                if give < min(3, needy[other]):
+                    continue
+                spec = kit["material"] + "|" + kit["raw"]
+                return {"id": f"deliver:kit:{other}", "skill": "deliver",
+                        "surface": True, "phase": "team",
+                        "args": {"to": other, "item": spec, "count": give}}
+            return None
+        return None
+
     # -- task selection ----------------------------------------------------
     def satisfied(self, task, name, inv):
         if "requires" in task and not has_all(inv, task["requires"]):
             return True  # not applicable to this bot right now
+        if "needs_fact" in task and task["needs_fact"] not in self.facts:
+            return True  # not possible yet
         if "fact" in task and task["fact"] in self.facts:
             return True
         if "until_fact" in task and task["until_fact"] in self.facts:
@@ -83,8 +159,8 @@ class Coordinator:
             size = max(1, len(self.active()))
             return all(self.team_count(spec) >= n * size
                        for spec, n in task["team_have"].items())
-        if task.get("repeat"):
-            return False  # applies whenever its `requires` holds
+        if task.get("repeat") or task.get("kit_mine") or task.get("kit_craft"):
+            return False  # decided by `requires` / kit_task()
         marked = self.done.get(task["id"], [])
         if task["scope"] == "team":
             return bool(marked) and "fact" not in task and "until_fact" not in task
@@ -119,6 +195,10 @@ class Coordinator:
                         "phase": "team"}
         if night:
             return None
+        handoff = self.kit_delivery(name, inv, team, dist)
+        if handoff and not [h for h in self.holders(handoff["id"], now)
+                            if h != name]:
+            return handoff
         for rule in self.goal.get("sharing", []):
             item, give = rule["item"], rule["give"]
             floor = rule.get("keep", 0)
@@ -162,7 +242,9 @@ class Coordinator:
                     others = [h for h in self.holders(task["id"], now) if h != name]
                     if len(others) >= task.get("slots", 1):
                         continue
-                task = dict(task, phase=phase["id"])
+                task = self.kit_task(dict(task, phase=phase["id"]), inv)
+                if task is None:
+                    continue
                 if "count_per_bot" in task:
                     task["args"] = dict(task["args"], count=task["count_per_bot"]
                                         * max(1, len(self.active())))
@@ -187,6 +269,8 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
+            # Count this bot as part of the team before deciding its task.
+            self.bots[name] = dict(r, seen=time.time(), task=prev.get("task", {}))
             task = self.pick(name, r.get("inventory", {}), r.get("night", False),
                              r.get("pos"))
             if task["id"] != prev.get("task", {}).get("id"):
@@ -201,6 +285,7 @@ class Coordinator:
         with self.lock:
             now = time.time()
             return {"goal": self.goal["name"], "facts": self.facts,
+                    "team_kit_need": self.team_kit_need() if "kit" in self.goal else None,
                     "done": self.done, "events": self.events[-40:],
                     "bots": {n: {"task": b["task"]["phase"] + "/" + b["task"]["id"],
                                  "age": round(now - b["seen"], 1),

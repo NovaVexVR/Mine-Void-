@@ -19,24 +19,28 @@
    {"id": "hunt", "scope": "team", "slots": 1, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules below hand the meat out"}
   ]},
   {"id": "base", "title": "Underground base", "tasks": [
-   {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base", "args": {"depth": 8, "size": 5}, "fact": "base"}
+   {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base", "args": {"depth": 8, "size": 5}, "fact": "base"},
+   {"id": "light_base", "scope": "team", "slots": 1, "skill": "light_base", "needs_fact": "base", "args": {}, "fact": "base_lit", "note": "torches stop mobs spawning inside the base"}
+  ]},
+  {"id": "beds", "title": "Beds", "tasks": [
+   {"id": "bed", "scope": "each", "skill": "bed", "surface": true, "needs_fact": "base", "args": {}, "note": "wool from sheep -> bed in the base -> respawn point; sleeping skips the night"}
   ]},
   {"id": "farm", "title": "Wheat farm", "tasks": [
    {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"}
   ]},
-  {"id": "iron", "title": "Iron", "tasks": [
-   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "gather", "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "count_per_bot": 5, "team_have": {"raw_iron|iron_ingot|iron_pickaxe": 3}, "note": "two miners dig iron for everyone (3 per bot = one pickaxe each)"},
-   {"id": "smelt_iron", "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
-   {"id": "iron_pickaxe", "scope": "each", "skill": "craft", "requires": {"iron_ingot": 3}, "args": {"item": "iron_pickaxe"}, "have": {"iron_pickaxe": 1}},
-   {"id": "iron_sword", "scope": "each", "skill": "craft", "requires": {"iron_ingot": 2}, "args": {"item": "iron_sword"}, "have": {"iron_sword": 1}}
+  {"id": "iron", "title": "Iron kit", "tasks": [
+   {"id": "craft_kit", "scope": "each", "skill": "craft", "kit_craft": true, "args": {}, "note": "crafts the next missing kit item once the bot holds enough iron"},
+   {"id": "smelt_trip", "scope": "each", "skill": "smelt", "requires": {"raw_iron": 8}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
+   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "gather", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
+   {"id": "smelt_iron", "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
   ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
    {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
   ]}
  ],
+ "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},
  "sharing": [
-  {"item": "food", "low": 2, "keep": 3, "give": 3},
-  {"item": "iron_ingot", "low": 3, "skip_if_have": "iron_pickaxe", "keep": 3, "keep_unless_have": "iron_pickaxe", "give": 3}
+  {"item": "food", "low": 2, "keep": 3, "give": 3}
  ],
  "fallback": {"id": "stockpile_wood", "skill": "gather", "surface": true, "args": {"blocks": "logs", "item": "log", "count": 32}}
 }
