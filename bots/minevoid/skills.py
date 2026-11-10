@@ -109,7 +109,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
     near home get used up (they do not respawn), so hunters range twice
     as far as other workers."""
     food = matcher(item)
-    end, misses = time.time() + timeout, 0
+    end, misses, visited = time.time() + timeout, 0, set()
     while g.count(food) < count and time.time() < end:
         come_home(g, facts, leash=2 * LEASH)
         g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
@@ -119,8 +119,21 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
             misses += 1
             if misses > 20:
                 break
+            # Teammates report the animals they pass: head for the nearest
+            # sighting of what we want before wandering blind.
+            kinds = animals.split("|")
+            home = facts.get("base") or g.pos()
+            spots = [a for a in facts.get("_animals", [])
+                     if a[0] in kinds and math.dist(a[1:], home) < 2 * LEASH
+                     and tuple(a[1:]) not in visited]
+            if spots:
+                a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
+                visited.add(tuple(a[1:]))
+                g.status = f"heading for a {a[0]} seen at {a[1:]}"
+                g.goto_near(*a[1:], radius=6, timeout=90)
+                continue
             g.b("explore")
-            g.sleep(20)
+            g.sleep(30)
             g.b("stop")
             continue
         target, last_goto, chase_end = prey[0], 0, time.time() + 45

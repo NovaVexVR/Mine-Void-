@@ -44,6 +44,7 @@ class Agent:
                     inventory=g.inv(), status=g.status, night=g.is_night(),
                     danger=g.health() < 10 and bool(g.hostiles(8)),
                     task_id=getattr(self, "assigned", None),
+                    animals=self.sightings(),
                     **extra)
         req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(),
                                      {"Content-Type": "application/json"})
@@ -55,8 +56,24 @@ class Agent:
         self.last_report = time.time()
         # In place: running skills hold this dict and see teammates move.
         self.facts.clear()
-        self.facts.update(reply["facts"], _team=reply["team"])
+        self.facts.update(reply["facts"], _team=reply["team"],
+                          _animals=reply.get("animals", []))
         return reply["task"]
+
+    def sightings(self):
+        """Passive animals we can see, shared so hunters know where to go.
+        Throttled: entity scans are not free."""
+        now = time.time()
+        if now - getattr(self, "last_sighting", 0) < 15:
+            return []
+        self.last_sighting = now
+        try:
+            seen = m.entities(type=".*\\.(cow|pig|sheep|chicken|rabbit|mooshroom)$",
+                              max_distance=64, limit=12)
+        except Exception:
+            return []
+        return [[e.type.rsplit(".", 1)[-1]] + [round(v) for v in e.position]
+                for e in seen]
 
     # -- background duties, called from every g.sleep() --------------------
     def tick(self):
@@ -177,7 +194,7 @@ class Agent:
             # Surface work waits for daylight, and so does a bot that just
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
-        elif g.hunger() <= 12 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
+        elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
             task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3},
                     "surface": True}
         self.task = task

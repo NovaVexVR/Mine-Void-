@@ -36,6 +36,7 @@ class Coordinator:
         self.facts = {}     # shared knowledge, e.g. {"base": [x, y, z]}
         self.done = {}      # task id -> [bot names] (sticky/team completions)
         self.done_at = {}   # task id -> time last finished (for cooldowns)
+        self.animals = {}   # (kind, x//16, z//16) -> [kind, x, y, z, seen_at]
         self.events = []    # recent log lines for the dashboard
         self.load_goal(goal_file)
         if os.path.exists(STATE_FILE):
@@ -198,7 +199,7 @@ class Coordinator:
             # Someone is on their way to us with a delivery: stay put.
             t = b.get("task", {})
             if t.get("skill") == "deliver" and t["args"]["to"] == name \
-                    and dist(b) < 48:
+                    and dist(b) < 48 and str(b.get("status", "")).startswith("delivering"):
                 return {"id": f"receive:{other}", "skill": "idle", "args": {},
                         "phase": "team"}
         if night:
@@ -266,6 +267,11 @@ class Coordinator:
                      if t["id"] == task["id"]), None)
         if plan is None or self.satisfied(plan, name, inv):
             return None
+        if plan["scope"] == "team":
+            others = sorted(h for h in self.holders(plan["id"], time.time())
+                            if h != name)
+            if len(others) >= plan.get("slots", 1) and others[0] < name:
+                return None  # over-subscribed (e.g. after a restart)
         return task
 
     def pick(self, name, inv, night=False, pos=None):
@@ -314,6 +320,11 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
+            now = time.time()
+            for kind, x, y, z in r.get("animals") or []:
+                self.animals[(kind, x // 16, z // 16)] = [kind, x, y, z, now]
+            self.animals = {k: v for k, v in self.animals.items()
+                            if now - v[4] < 600}
             # Count this bot as part of the team before deciding its task.
             self.bots[name] = dict(r, seen=time.time(), task=prev.get("task", {}))
             inv = r.get("inventory", {})
@@ -331,6 +342,7 @@ class Coordinator:
             if r.get("facts") or r.get("done"):
                 self.save()
             return {"task": task, "facts": self.facts,
+                    "animals": [v[:4] for v in self.animals.values()],
                     "team": {n: b.get("pos") for n, b in self.active().items()}}
 
     def state(self):
@@ -338,6 +350,7 @@ class Coordinator:
             now = time.time()
             return {"goal": self.goal["name"], "facts": self.facts,
                     "team_kit_need": self.team_kit_need() if "kit" in self.goal else None,
+                    "animal_sightings": len(self.animals),
                     "done": self.done, "events": self.events[-40:],
                     "bots": {n: {"task": b["task"]["phase"] + "/" + b["task"]["id"],
                                  "age": round(now - b["seen"], 1),
