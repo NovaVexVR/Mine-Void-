@@ -28,5 +28,8 @@ def matcher(spec):
 
 
 def count(inv, spec):
+    if spec == "bed_material":  # a bed, or three wool of one colour
+        return int(any(i.endswith("_bed") for i in inv)
+                   or any(n >= 3 for i, n in inv.items() if i.endswith("_wool")))
     pred = matcher(spec)
     return sum(n for item, n in inv.items() if pred(item))

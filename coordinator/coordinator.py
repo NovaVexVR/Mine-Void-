@@ -246,6 +246,11 @@ class Coordinator:
                                report.get("night", False))
         if urgent and urgent["skill"] != "deliver":
             return None
+        for p in self.goal["phases"]:
+            for t in p["tasks"]:
+                if t.get("preempt") and t["id"] != task["id"] \
+                        and not self.satisfied(t, name, inv):
+                    return None  # something more important came up
         plan = next((t for p in self.goal["phases"] for t in p["tasks"]
                      if t["id"] == task["id"]), None)
         if plan is None or self.satisfied(plan, name, inv):
@@ -299,7 +304,13 @@ class Coordinator:
             # Count this bot as part of the team before deciding its task.
             self.bots[name] = dict(r, seen=time.time(), task=prev.get("task", {}))
             inv = r.get("inventory", {})
-            task = self.keep(name, prev.get("task"), inv, r) or \
+            current = prev.get("task")
+            if not current and r.get("task_id"):
+                # Coordinator restarted: carry on with what the bot says it
+                # was doing, so roles are not reshuffled.
+                current = next((dict(t, phase=p["id"]) for p in self.goal["phases"]
+                                for t in p["tasks"] if t["id"] == r["task_id"]), None)
+            task = self.keep(name, current, inv, r) or \
                 self.pick(name, inv, r.get("night", False), r.get("pos"))
             if task["id"] != prev.get("task", {}).get("id"):
                 self.log(f"{name} -> {task['phase']}/{task['id']}")

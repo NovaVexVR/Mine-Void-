@@ -42,6 +42,7 @@ class Agent:
                     health=round(g.health(), 1), food=g.hunger(),
                     inventory=g.inv(), status=g.status, night=g.is_night(),
                     danger=g.health() < 10 and bool(g.hostiles(8)),
+                    task_id=getattr(self, "assigned", None),
                     **extra)
         req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(),
                                      {"Content-Type": "application/json"})
