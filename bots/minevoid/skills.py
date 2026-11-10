@@ -41,7 +41,7 @@ def gather(g, facts, blocks, item, count, timeout=900):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
     end, misses = time.time() + timeout, 0
-    last_progress, last_state = time.time(), None
+    last_progress, last_state, stuck = time.time(), None, 0
     # Anti-xray scrambles hidden ores, so only chase ore we can actually
     # see; wood and stone are never faked and can use chunk data directly.
     g.b("set legitMine " + ("true" if blocks in ("iron", "coal") else "false"))
@@ -65,8 +65,16 @@ def gather(g, facts, blocks, item, count, timeout=900):
         if state != last_state:
             last_state, last_progress = state, time.time()
         elif time.time() - last_progress > 45:
-            g.log("gather stuck, restarting baritone")
+            stuck += 1
+            g.log(f"gather stuck ({stuck}), restarting baritone")
             g.stop()
+            if stuck >= 2:
+                # Same spot keeps failing (often a cramped corner Baritone
+                # cannot path out of): go somewhere else first.
+                x, y, z = g.block_pos()
+                g.b(f"goto {x + 24 * (1 if stuck % 2 else -1)} {z + 24}")
+                g.sleep(15)
+                g.stop()
             last_progress = time.time()
         g.sleep(1)
     g.stop()

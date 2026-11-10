@@ -238,7 +238,12 @@ class Coordinator:
         """A bot keeps working on its plan task until it finishes or fails,
         instead of being reshuffled whenever priorities move (that sent bots
         back and forth across the map). Urgent team jobs still preempt."""
-        if not task or report.get("done") or report.get("event") \
+        # Only finishing/failing *this* task ends it; the bot's own detours
+        # (shelter at night, digging in, recovering gear) do not.
+        ended = report.get("done") == task.get("id") if task else False
+        failed = (report.get("event") or "").startswith(f"{task.get('id')} ") \
+            if task else False
+        if not task or ended or failed \
                 or task.get("phase") in ("team", "fallback", None) \
                 or task.get("kit_mine") or task.get("kit_craft"):
             return None
