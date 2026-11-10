@@ -41,6 +41,7 @@ class Agent:
         body = dict(name=g.name, pos=[round(v) for v in g.pos()],
                     health=round(g.health(), 1), food=g.hunger(),
                     inventory=g.inv(), status=g.status, night=g.is_night(),
+                    danger=g.health() < 10 and bool(g.hostiles(8)),
                     **extra)
         req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(),
                                      {"Content-Type": "application/json"})
@@ -50,7 +51,9 @@ class Agent:
             g.log("coordinator unreachable:", e)
             return None
         self.last_report = time.time()
-        self.facts = reply["facts"]
+        # In place: running skills hold this dict and see teammates move.
+        self.facts.clear()
+        self.facts.update(reply["facts"], _team=reply["team"])
         return reply["task"]
 
     # -- background duties, called from every g.sleep() --------------------

@@ -202,7 +202,7 @@ class Game:
 
     def sync_menu(self):
         p = self.mc.player
-        kinds = {k: getattr(self.ClickType, k) for k in ("PICKUP", "QUICK_MOVE")}
+        kinds = {k: getattr(self.ClickType, k) for k in ("PICKUP", "QUICK_MOVE", "THROW")}
         self._click = (self.mc.gameMode, p, p.containerMenu.containerId, kinds)
 
     def menu_slot(self, inv_slot, top_slots):
@@ -353,6 +353,20 @@ class Game:
         m.player_press_attack(True)
         time.sleep(0.1)
         m.player_press_attack(False)
+
+    def toss(self, pred, n):
+        """Throw up to n matching items out in front of the bot."""
+        self.close_screen()
+        self.sync_menu()
+        thrown = 0
+        for s in m.player_inventory():
+            if thrown >= n:
+                break
+            if s.slot < 36 and pred(short(s.item)):
+                for _ in range(min(n - thrown, s.count)):
+                    self.click(self.menu_slot(s.slot, None), 0, "THROW")
+                    thrown += 1
+        return thrown
 
     def eat(self):
         """Eat one food item (Meteor's Auto Eat only sees the hotbar)."""

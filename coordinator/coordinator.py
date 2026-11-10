@@ -10,6 +10,7 @@ doing plus the shared facts (base location, ...). The plan is plain data
     open http://localhost:8765/      # tiny dashboard
 """
 import json
+import math
 import os
 import sys
 import threading
@@ -58,14 +59,32 @@ class Coordinator:
             json.dump({"goal": self.goal["name"], "facts": self.facts,
                        "done": self.done}, f)
 
+    # -- team view ---------------------------------------------------------
+    def active(self):
+        now = time.time()
+        return {n: b for n, b in self.bots.items()
+                if now - b["seen"] < LEASE_SECONDS}
+
+    def team_count(self, spec):
+        return sum(count(b.get("inventory", {}), spec)
+                   for b in self.active().values())
+
     # -- task selection ----------------------------------------------------
     def satisfied(self, task, name, inv):
+        if "requires" in task and not has_all(inv, task["requires"]):
+            return True  # not applicable to this bot right now
         if "fact" in task and task["fact"] in self.facts:
             return True
         if "until_fact" in task and task["until_fact"] in self.facts:
             return True
         if "skip_if_have" in task and has_all(inv, task["skip_if_have"]):
             return True
+        if "team_have" in task:  # amounts are per bot, summed over the team
+            size = max(1, len(self.active()))
+            return all(self.team_count(spec) >= n * size
+                       for spec, n in task["team_have"].items())
+        if task.get("repeat"):
+            return False  # applies whenever its `requires` holds
         marked = self.done.get(task["id"], [])
         if task["scope"] == "team":
             return bool(marked) and "fact" not in task and "until_fact" not in task
@@ -73,22 +92,68 @@ class Coordinator:
             if has_all(inv, task["have"]):
                 return True
             return task.get("sticky", False) and name in marked
-        if "skip_if_have" in task or task["skill"] == "gather":
+        if task["skill"] == "gather":
             a = task["args"]
             return count(inv, a["item"]) >= a["count"]
         return name in marked
+
+    def teamwork(self, name, inv, pos, night):
+        """Jobs that come from teammates rather than the plan: help someone
+        in trouble, hand over spare items, or wait for a hand-over."""
+        now, team = time.time(), self.active()
+        dist = lambda other: math.dist(pos, other["pos"]) \
+            if pos and other.get("pos") else 1e9
+        for other, b in team.items():
+            if other == name:
+                continue
+            tid = f"assist:{other}"
+            if b.get("danger") and dist(b) < 96 and \
+                    not [h for h in self.holders(tid, now) if h != name]:
+                return {"id": tid, "skill": "assist", "args": {"to": other},
+                        "phase": "team"}
+            # Someone is on their way to us with a delivery: stay put.
+            t = b.get("task", {})
+            if t.get("skill") == "deliver" and t["args"]["to"] == name \
+                    and dist(b) < 48:
+                return {"id": f"receive:{other}", "skill": "idle", "args": {},
+                        "phase": "team"}
+        if night:
+            return None
+        for rule in self.goal.get("sharing", []):
+            item, give = rule["item"], rule["give"]
+            floor = rule.get("keep", 0)
+            if "keep_unless_have" in rule and count(inv, rule["keep_unless_have"]):
+                floor = 0
+            if count(inv, item) - give < floor:
+                continue
+            for other, b in sorted(team.items(), key=lambda kv: dist(kv[1])):
+                oinv = b.get("inventory", {})
+                if (other == name or dist(b) > 400 or b.get("health", 0) <= 0
+                        or count(oinv, item) >= rule["low"]
+                        or ("skip_if_have" in rule
+                            and count(oinv, rule["skip_if_have"]))):
+                    continue
+                tid = f"deliver:{item}:{other}"
+                if [h for h in self.holders(tid, now) if h != name]:
+                    continue
+                return {"id": tid, "skill": "deliver", "surface": True,
+                        "args": {"to": other, "item": item, "count": give},
+                        "phase": "team"}
+        return None
 
     def holders(self, task_id, now):
         return [n for n, b in self.bots.items()
                 if b.get("task", {}).get("id") == task_id
                 and now - b["seen"] < LEASE_SECONDS]
 
-    def pick(self, name, inv, night=False):
+    def pick(self, name, inv, night=False, pos=None):
         """First unfinished task this bot may take. At night, underground
         work from later phases is preferred over surface tasks; if only
         surface work is left the bot gets it anyway and shelters."""
         now = time.time()
-        first_surface = None
+        first_surface = self.teamwork(name, inv, pos, night)
+        if first_surface:
+            return first_surface
         for phase in self.goal["phases"]:
             for task in phase["tasks"]:
                 if self.satisfied(task, name, inv):
@@ -98,6 +163,9 @@ class Coordinator:
                     if len(others) >= task.get("slots", 1):
                         continue
                 task = dict(task, phase=phase["id"])
+                if "count_per_bot" in task:
+                    task["args"] = dict(task["args"], count=task["count_per_bot"]
+                                        * max(1, len(self.active())))
                 if night and task.get("surface"):
                     first_surface = first_surface or task
                     continue
@@ -119,14 +187,15 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
-            task = self.pick(name, r.get("inventory", {}), r.get("night", False))
+            task = self.pick(name, r.get("inventory", {}), r.get("night", False),
+                             r.get("pos"))
             if task["id"] != prev.get("task", {}).get("id"):
                 self.log(f"{name} -> {task['phase']}/{task['id']}")
             self.bots[name] = dict(r, seen=time.time(), task=task)
             if r.get("facts") or r.get("done"):
                 self.save()
             return {"task": task, "facts": self.facts,
-                    "team": {n: b.get("pos") for n, b in self.bots.items()}}
+                    "team": {n: b.get("pos") for n, b in self.active().items()}}
 
     def state(self):
         with self.lock:
@@ -187,5 +256,7 @@ if __name__ == "__main__":
     goal = sys.argv[1] if len(sys.argv) > 1 else "goals/beat_the_game.json"
     port = int(os.environ.get("COORD_PORT", "8765"))
     co = Coordinator(goal)
-    co.log(f"listening on 127.0.0.1:{port}")
-    ThreadingHTTPServer(("127.0.0.1", port), make_handler(co)).serve_forever()
+    # Local only by default; set COORD_HOST when bots run on other machines.
+    host = os.environ.get("COORD_HOST", "127.0.0.1")
+    co.log(f"listening on {host}:{port}")
+    ThreadingHTTPServer((host, port), make_handler(co)).serve_forever()

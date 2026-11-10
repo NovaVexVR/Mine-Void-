@@ -17,6 +17,26 @@ from .items import CLASSES, matcher
 ANIMALS = "cow|pig|sheep|chicken|rabbit|mooshroom"
 
 
+LEASH = 160  # blocks from home a bot may wander while working
+
+
+def come_home(g, facts, force=False):
+    """Keep the team together: if we strayed beyond the leash, walk back
+    towards home (the base, or world spawn before there is one)."""
+    home = facts.get("base") or m.world_info().spawn
+    here = g.pos()
+    if not force and math.dist(here[::2], home[::2]) <= LEASH:
+        return False
+    g.stop()
+    g.status = "returning to the team area"
+    g.b(f"goto {home[0]} {home[2]}")
+    g.sleep(2)
+    g.wait(lambda: math.dist(g.pos()[::2], home[::2]) < LEASH / 3
+           or not g.busy(), 600, 2)
+    g.stop()
+    return True
+
+
 def gather(g, facts, blocks, item, count, timeout=900):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
@@ -29,6 +49,7 @@ def gather(g, facts, blocks, item, count, timeout=900):
         if time.time() > end:
             g.stop()
             return False
+        come_home(g, facts)
         g.status = f"gathering {blocks} {g.count(pred)}/{count}"
         if not g.baritone.getMineProcess().isActive():
             g.b("mine " + names)
@@ -64,6 +85,7 @@ def hunt(g, facts, count=6, timeout=600):
     food = CLASSES["food"]
     end, misses = time.time() + timeout, 0
     while g.count(food) < count and time.time() < end:
+        come_home(g, facts)
         g.status = f"hunting {g.count(food)}/{count}"
         prey = m.entities(type=f".*\\.({ANIMALS})$", max_distance=60,
                           sort="nearest", limit=1)
@@ -101,8 +123,9 @@ def shelter(g, facts):
     """Sit out the night: go to the base if there is one, otherwise dig a
     3-deep hole and seal it."""
     g.status = "sheltering for the night"
-    if "base" in facts:
-        g.goto(*facts["base"], timeout=180, near=2)
+    if "base" in facts and math.dist(g.pos(), facts["base"]) < 120 \
+            and g.goto(*facts["base"], timeout=180, near=2):
+        pass  # the team spends the night together in the base
     else:
         x, y, z = g.block_pos()
         g.goto(x, y - 3, z, timeout=60)
@@ -262,6 +285,55 @@ def build_farm(g, facts, plots=8):
     return {"farm": planted[0], "farm_plots": len(planted)}
 
 
+def teammate_pos(g, facts, name):
+    return (facts.get("_team") or {}).get(name)
+
+
+def deliver(g, facts, to, item, count, timeout=420):
+    """Walk to a teammate and hand over items by throwing them at their
+    feet. The coordinator keeps the receiver waiting once we are close."""
+    pred, end = matcher(item), time.time() + timeout
+    while time.time() < end:
+        pos = teammate_pos(g, facts, to)
+        if not pos:
+            return False
+        d = math.dist(g.pos(), pos)
+        g.status = f"delivering {count} {item} to {to} ({round(d)} blocks)"
+        if d > 3.5:
+            g.goto_near(*pos, radius=2, timeout=20)  # re-aim every 20 s
+            continue
+        m.player_look_at(pos[0] + 0.5, pos[1] + 0.3, pos[2] + 0.5)
+        time.sleep(0.4)
+        n = g.toss(pred, count)
+        g.log(f"handed {n} {item} to {to}")
+        # Step away so the receiver, not us, picks the items up.
+        x, y, z = g.block_pos()
+        dx, dz = x - pos[0], z - pos[2]
+        norm = max(1.0, math.hypot(dx, dz))
+        g.goto_near(round(x + 5 * dx / norm), y, round(z + 5 * dz / norm),
+                    radius=1, timeout=10)
+        g.sleep(3)
+        return n > 0
+    return False
+
+
+def assist(g, facts, to):
+    """Run to a teammate who is hurt and under attack; Kill Aura and the
+    fight routine do the rest once we are next to them."""
+    end = time.time() + 60
+    while time.time() < end:
+        pos = teammate_pos(g, facts, to)
+        if not pos:
+            break
+        g.status = f"assisting {to}"
+        if math.dist(g.pos(), pos) > 3:
+            g.goto_near(*pos, radius=2, timeout=10)
+        else:
+            g.fight(radius=8, timeout=5)
+            g.sleep(1)
+    return True
+
+
 def idle(g, facts):
     g.status = "idle"
     g.sleep(10)
@@ -270,4 +342,4 @@ def idle(g, facts):
 
 SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "build_base": build_base, "smelt": smelt, "build_farm": build_farm,
-          "idle": idle}
+          "deliver": deliver, "assist": assist, "idle": idle}

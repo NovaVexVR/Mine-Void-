@@ -6,8 +6,9 @@ N="${1:-3}"; GOAL="${2:-goals/beat_the_game.json}"
 mkdir -p run client/instances
 [ -f client/cache/launch.json ] || python3 client/install.py
 server/start.sh
-if ! pgrep -f coordinator/coordinator.py >/dev/null; then
-  nohup python3 coordinator/coordinator.py "$GOAL" > run/coordinator.log 2>&1 &
+if ! { [ -f run/coordinator.pid ] && kill -0 "$(cat run/coordinator.pid)" 2>/dev/null; }; then
+  nohup python3 coordinator/coordinator.py "$GOAL" >> run/coordinator.log 2>&1 &
+  echo $! > run/coordinator.pid
   echo "coordinator started (http://127.0.0.1:8765/)"
 fi
 for i in $(seq "$N"); do

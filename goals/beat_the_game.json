@@ -1,60 +1,42 @@
 {
-  "name": "beat_the_game",
-  "description": "Defeat the Ender Dragon. Phases run in order; a bot always takes the first unfinished task it is allowed to take.",
-  "phases": [
-    {"id": "wood", "title": "Gather wood", "tasks": [
-      {"id": "logs", "scope": "each", "skill": "gather", "surface": true,
-       "args": {"blocks": "logs", "item": "log", "count": 10},
-       "skip_if_have": {"pickaxe": 1}}
-    ]},
-    {"id": "wooden_tools", "title": "Wooden tools", "tasks": [
-      {"id": "wooden_pickaxe", "scope": "each", "skill": "craft",
-       "args": {"item": "wooden_pickaxe"}, "have": {"pickaxe": 1}},
-      {"id": "wooden_sword", "scope": "each", "skill": "craft",
-       "args": {"item": "wooden_sword"}, "have": {"sword": 1}}
-    ]},
-    {"id": "stone_tools", "title": "Stone tools", "tasks": [
-      {"id": "cobble", "scope": "each", "skill": "gather",
-       "args": {"blocks": "stone", "item": "stone", "count": 12},
-       "skip_if_have": {"stone_pickaxe|iron_pickaxe": 1}},
-      {"id": "stone_pickaxe", "scope": "each", "skill": "craft",
-       "args": {"item": "stone_pickaxe"}, "have": {"stone_pickaxe|iron_pickaxe": 1}},
-      {"id": "stone_sword", "scope": "each", "skill": "craft",
-       "args": {"item": "stone_sword"}, "have": {"stone_sword|iron_sword": 1}},
-      {"id": "stone_axe", "scope": "each", "skill": "craft",
-       "args": {"item": "stone_axe"}, "have": {"stone_axe|iron_axe": 1}}
-    ]},
-    {"id": "food", "title": "Food", "tasks": [
-      {"id": "hunt", "scope": "each", "skill": "hunt", "surface": true,
-       "args": {"count": 6}, "have": {"food": 6}, "sticky": true}
-    ]},
-    {"id": "base", "title": "Underground base", "tasks": [
-      {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base",
-       "args": {"depth": 8, "size": 5}, "fact": "base"},
-      {"id": "base_logs", "scope": "team", "slots": 4, "skill": "gather", "surface": true,
-       "args": {"blocks": "logs", "item": "log", "count": 16}, "until_fact": "base"}
-    ]},
-    {"id": "farm", "title": "Wheat farm", "tasks": [
-      {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm",
-       "surface": true, "args": {"plots": 8}, "fact": "farm"}
-    ]},
-    {"id": "iron", "title": "Iron", "tasks": [
-      {"id": "iron_ore", "scope": "each", "skill": "gather",
-       "args": {"blocks": "iron", "item": "raw_iron|iron_ingot", "count": 6},
-       "skip_if_have": {"iron_pickaxe": 1}},
-      {"id": "smelt_iron", "scope": "each", "skill": "smelt",
-       "args": {"input": "raw_iron", "output": "iron_ingot", "count": 6},
-       "skip_if_have": {"iron_pickaxe": 1}, "have": {"iron_ingot": 6}},
-      {"id": "iron_pickaxe", "scope": "each", "skill": "craft",
-       "args": {"item": "iron_pickaxe"}, "have": {"iron_pickaxe": 1}},
-      {"id": "iron_sword", "scope": "each", "skill": "craft",
-       "args": {"item": "iron_sword"}, "have": {"iron_sword": 1}}
-    ]},
-    {"id": "todo", "title": "Not implemented yet", "tasks": [
-      {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {},
-       "note": "diamonds -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
-    ]}
-  ],
-  "fallback": {"id": "stockpile", "skill": "gather",
-               "args": {"blocks": "stone", "item": "stone", "count": 64}}
+ "name": "beat_the_game",
+ "description": "Defeat the Ender Dragon. Phases run in order; a bot always takes the first unfinished task it is allowed to take.",
+ "phases": [
+  {"id": "wood", "title": "Gather wood", "tasks": [
+   {"id": "logs", "scope": "each", "skill": "gather", "surface": true, "args": {"blocks": "logs", "item": "log", "count": 10}, "skip_if_have": {"pickaxe": 1}}
+  ]},
+  {"id": "wooden_tools", "title": "Wooden tools", "tasks": [
+   {"id": "wooden_pickaxe", "scope": "each", "skill": "craft", "args": {"item": "wooden_pickaxe"}, "have": {"pickaxe": 1}},
+   {"id": "wooden_sword", "scope": "each", "skill": "craft", "args": {"item": "wooden_sword"}, "have": {"sword": 1}}
+  ]},
+  {"id": "stone_tools", "title": "Stone tools", "tasks": [
+   {"id": "cobble", "scope": "each", "skill": "gather", "args": {"blocks": "stone", "item": "stone", "count": 12}, "skip_if_have": {"stone_pickaxe|iron_pickaxe": 1}},
+   {"id": "stone_pickaxe", "scope": "each", "skill": "craft", "args": {"item": "stone_pickaxe"}, "have": {"stone_pickaxe|iron_pickaxe": 1}},
+   {"id": "stone_sword", "scope": "each", "skill": "craft", "args": {"item": "stone_sword"}, "have": {"stone_sword|iron_sword": 1}},
+   {"id": "stone_axe", "scope": "each", "skill": "craft", "args": {"item": "stone_axe"}, "have": {"stone_axe|iron_axe": 1}}
+  ]},
+  {"id": "food", "title": "Food", "tasks": [
+   {"id": "hunt", "scope": "team", "slots": 1, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules below hand the meat out"}
+  ]},
+  {"id": "base", "title": "Underground base", "tasks": [
+   {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base", "args": {"depth": 8, "size": 5}, "fact": "base"}
+  ]},
+  {"id": "farm", "title": "Wheat farm", "tasks": [
+   {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"}
+  ]},
+  {"id": "iron", "title": "Iron", "tasks": [
+   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "gather", "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "count_per_bot": 5, "team_have": {"raw_iron|iron_ingot|iron_pickaxe": 3}, "note": "two miners dig iron for everyone (3 per bot = one pickaxe each)"},
+   {"id": "smelt_iron", "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
+   {"id": "iron_pickaxe", "scope": "each", "skill": "craft", "requires": {"iron_ingot": 3}, "args": {"item": "iron_pickaxe"}, "have": {"iron_pickaxe": 1}},
+   {"id": "iron_sword", "scope": "each", "skill": "craft", "requires": {"iron_ingot": 2}, "args": {"item": "iron_sword"}, "have": {"iron_sword": 1}}
+  ]},
+  {"id": "todo", "title": "Not implemented yet", "tasks": [
+   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
+  ]}
+ ],
+ "sharing": [
+  {"item": "food", "low": 2, "keep": 3, "give": 3},
+  {"item": "iron_ingot", "low": 3, "skip_if_have": "iron_pickaxe", "keep": 3, "keep_unless_have": "iron_pickaxe", "give": 3}
+ ],
+ "fallback": {"id": "stockpile_wood", "skill": "gather", "surface": true, "args": {"blocks": "logs", "item": "log", "count": 32}}
 }
