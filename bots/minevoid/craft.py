@@ -25,6 +25,7 @@ RECIPES = {
     "torch": (("C", "S"), {"C": "coal", "S": "stick"}, 4),
     "bucket": (("I I", " I "), {"I": "iron_ingot"}, 1),
     "bread": (("WWW",), {"W": "wheat"}, 1),
+    "fishing_rod": (("  S", " SX", "S X"), {"S": "stick", "X": "string"}, 1),
     "shield": (("PIP", "PPP", " P "), {"P": "planks", "I": "iron_ingot"}, 1),
     "iron_helmet": (("III", "I I"), {"I": "iron_ingot"}, 1),
     "iron_chestplate": (("I I", "III", "III"), {"I": "iron_ingot"}, 1),
@@ -157,4 +158,7 @@ def craft(g, item, times=1, retries=3):
         g.close_screen()
     after = g.count(lambda i: i == item or (item == "planks" and i.endswith("_planks")))
     g.log(f"crafted {item}: {before} -> {after}")
+    if after <= before and retries > 0:
+        g.close_screen()  # the table hands back what is left in its grid
+        return craft(g, item, times, retries - 1)
     return after > before

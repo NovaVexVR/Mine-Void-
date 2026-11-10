@@ -35,6 +35,7 @@ class Coordinator:
         self.bots = {}      # name -> last report (+ "seen", "task")
         self.facts = {}     # shared knowledge, e.g. {"base": [x, y, z]}
         self.done = {}      # task id -> [bot names] (sticky/team completions)
+        self.done_at = {}   # task id -> time last finished (for cooldowns)
         self.events = []    # recent log lines for the dashboard
         self.load_goal(goal_file)
         if os.path.exists(STATE_FILE):
@@ -149,6 +150,12 @@ class Coordinator:
             return True  # not applicable to this bot right now
         if "needs_fact" in task and task["needs_fact"] not in self.facts:
             return True  # not possible yet
+        if "requires_any" in task and \
+                not any(has_all(inv, alt) for alt in task["requires_any"]):
+            return True
+        if "cooldown" in task and \
+                time.time() - self.done_at.get(task["id"], 0) < task["cooldown"]:
+            return True
         if "fact" in task and task["fact"] in self.facts:
             return True
         if "until_fact" in task and task["until_fact"] in self.facts:
@@ -159,7 +166,8 @@ class Coordinator:
             size = max(1, len(self.active()))
             return all(self.team_count(spec) >= n * size
                        for spec, n in task["team_have"].items())
-        if task.get("repeat") or task.get("kit_mine") or task.get("kit_craft"):
+        if task.get("repeat") or task.get("kit_mine") or task.get("kit_craft") \
+                or "cooldown" in task:
             return False  # decided by `requires` / kit_task()
         marked = self.done.get(task["id"], [])
         if task["scope"] == "team":
@@ -226,6 +234,24 @@ class Coordinator:
                 if b.get("task", {}).get("id") == task_id
                 and now - b["seen"] < LEASE_SECONDS]
 
+    def keep(self, name, task, inv, report):
+        """A bot keeps working on its plan task until it finishes or fails,
+        instead of being reshuffled whenever priorities move (that sent bots
+        back and forth across the map). Urgent team jobs still preempt."""
+        if not task or report.get("done") or report.get("event") \
+                or task.get("phase") in ("team", "fallback", None) \
+                or task.get("kit_mine") or task.get("kit_craft"):
+            return None
+        urgent = self.teamwork(name, inv, report.get("pos"),
+                               report.get("night", False))
+        if urgent and urgent["skill"] != "deliver":
+            return None
+        plan = next((t for p in self.goal["phases"] for t in p["tasks"]
+                     if t["id"] == task["id"]), None)
+        if plan is None or self.satisfied(plan, name, inv):
+            return None
+        return task
+
     def pick(self, name, inv, night=False, pos=None):
         """First unfinished task this bot may take. At night, underground
         work from later phases is preferred over surface tasks; if only
@@ -263,6 +289,7 @@ class Coordinator:
                 self.facts[k] = v
                 self.log(f"{name} set fact {k}={v}")
             if r.get("done"):
+                self.done_at[r["done"]] = time.time()
                 self.done.setdefault(r["done"], [])
                 if name not in self.done[r["done"]]:
                     self.done[r["done"]].append(name)
@@ -271,8 +298,9 @@ class Coordinator:
                 self.log(f"{name}: {r['event']}")
             # Count this bot as part of the team before deciding its task.
             self.bots[name] = dict(r, seen=time.time(), task=prev.get("task", {}))
-            task = self.pick(name, r.get("inventory", {}), r.get("night", False),
-                             r.get("pos"))
+            inv = r.get("inventory", {})
+            task = self.keep(name, prev.get("task"), inv, r) or \
+                self.pick(name, inv, r.get("night", False), r.get("pos"))
             if task["id"] != prev.get("task", {}).get("id"):
                 self.log(f"{name} -> {task['phase']}/{task['id']}")
             self.bots[name] = dict(r, seen=time.time(), task=task)

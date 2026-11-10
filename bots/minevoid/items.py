@@ -13,6 +13,9 @@ CLASSES = {
     "pickaxe": lambda i: i.endswith("_pickaxe"),
     "sword": lambda i: i.endswith("_sword"),
     "food": lambda i: i in FOODS,
+    "raw_meat": lambda i: i in ("beef", "porkchop", "mutton", "chicken",
+                                "rabbit", "cod", "salmon"),
+    "cooked_food": lambda i: i.startswith("cooked_") or i in ("bread", "baked_potato"),
     "wool": lambda i: i.endswith("_wool"),
     "bed": lambda i: i.endswith("_bed"),
 }

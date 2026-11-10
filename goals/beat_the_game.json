@@ -16,17 +16,20 @@
    {"id": "stone_axe", "scope": "each", "skill": "craft", "args": {"item": "stone_axe"}, "have": {"stone_axe|iron_axe": 1}}
   ]},
   {"id": "food", "title": "Food", "tasks": [
-   {"id": "hunt", "scope": "team", "slots": 1, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules below hand the meat out"}
+   {"id": "fish", "scope": "team", "slots": 1, "skill": "fish", "needs_fact": "base", "requires_any": [{"fishing_rod": 1}, {"string": 2}], "team_have": {"food": 8}, "args": {"count": 20}, "note": "endless food from water near the base once someone has string for a rod"},
+   {"id": "hunt", "scope": "team", "slots": 1, "skill": "hunt", "surface": true, "args": {"count": 64}, "team_have": {"food": 4}, "note": "one hunter feeds the team; the sharing rules hand the meat out"},
+   {"id": "cook", "scope": "each", "skill": "smelt", "needs_fact": "base", "requires": {"raw_meat": 3}, "args": {"input": "raw_meat", "output": "cooked_food", "count": 64}, "repeat": true}
   ]},
   {"id": "base", "title": "Underground base", "tasks": [
    {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base", "args": {"depth": 8, "size": 5}, "fact": "base"},
    {"id": "light_base", "scope": "team", "slots": 1, "skill": "light_base", "needs_fact": "base", "args": {}, "fact": "base_lit", "note": "torches stop mobs spawning inside the base"}
   ]},
+  {"id": "farm", "title": "Wheat farm", "tasks": [
+   {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"},
+   {"id": "harvest", "scope": "team", "slots": 1, "skill": "harvest", "surface": true, "needs_fact": "farm", "cooldown": 1200, "args": {}, "note": "harvest + replant with Baritone, bake bread"}
+  ]},
   {"id": "beds", "title": "Beds", "tasks": [
    {"id": "bed", "scope": "each", "skill": "bed", "surface": true, "needs_fact": "base", "args": {}, "note": "wool from sheep -> bed in the base -> respawn point; sleeping skips the night"}
-  ]},
-  {"id": "farm", "title": "Wheat farm", "tasks": [
-   {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"}
   ]},
   {"id": "iron", "title": "Iron kit", "tasks": [
    {"id": "craft_kit", "scope": "each", "skill": "craft", "kit_craft": true, "args": {}, "note": "crafts the next missing kit item once the bot holds enough iron"},

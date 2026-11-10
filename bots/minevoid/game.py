@@ -452,7 +452,11 @@ class Game:
         from .items import CLASSES
         cooked = lambda i: CLASSES["food"](i) and i not in ("chicken", "rabbit")
         if not (self.select(lambda i: i.startswith("cooked_") or i == "bread")
-                or self.select(cooked) or self.select(CLASSES["food"])):
+                or self.select(cooked) or self.select(CLASSES["food"])
+                # Last resort: rotten flesh (may cause Hunger, but starving
+                # means no health regeneration at all).
+                or (self.hunger() <= 8
+                    and self.select(lambda i: i == "rotten_flesh"))):
             return False
         m.player_set_orientation(m.player_orientation()[0], -30)  # not at a block
         m.player_press_use(True)
