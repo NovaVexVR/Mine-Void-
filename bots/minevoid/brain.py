@@ -62,7 +62,8 @@ class Agent:
         self.serve_debug()
         dead = g.health() <= 0
         if dead and not self.was_dead:
-            self.report(event="died")
+            self.death = (getattr(self, "last_alive_pos", None), time.time())
+            self.report(event=f"died at {self.death[0]}")
         self.was_dead = dead
         if dead:
             return
@@ -75,7 +76,12 @@ class Agent:
             finally:
                 g.b("resume")
             self.last_fight = time.time()
-        if now - getattr(self, "last_eat", 0) > 6 and g.hunger() <= 14 and not m.screen_name():
+        hp = g.health()
+        if not dead:
+            self.last_alive_pos = g.block_pos()
+        # Health only regenerates at 18+ food, so eat sooner when hurt.
+        hungry = g.hunger() <= (17 if hp < 16 else 14)
+        if now - getattr(self, "last_eat", 0) > 6 and hungry and not m.screen_name():
             self.last_eat = now
             g.b("pause")
             try:
@@ -133,7 +139,20 @@ class Agent:
             g.respawn()
             return
         self.assigned = task["id"]  # what the coordinator thinks we do
-        if task.get("surface") and g.is_night():
+        death = getattr(self, "death", None)
+        if death and death[0] and time.time() - death[1] < 240 and not g.is_night():
+            # Dropped items last five minutes: go and pick our gear back up.
+            self.death = None
+            task = {"id": "recover_gear", "skill": "recover",
+                    "args": {"pos": death[0]}}
+        elif g.health() < 8 and (g.hostiles(12) or g.is_night()):
+            task = {"id": "dig_in", "skill": "dig_in", "args": {}}
+        unarmed = g.count(items.CLASSES["sword"]) == 0
+        if task["skill"] in ("recover", "dig_in"):
+            pass
+        elif g.is_night() and (task.get("surface") or unarmed):
+            # Surface work waits for daylight, and so does a bot that just
+            # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
         elif g.hunger() <= 12 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
             task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3},

@@ -127,19 +127,41 @@ def shelter(g, facts):
             and g.goto(*facts["base"], timeout=180, near=2):
         pass  # the team spends the night together in the base
     else:
-        x, y, z = g.block_pos()
-        g.goto(x, y - 3, z, timeout=60)
-        x, y, z = g.block_pos()
-        solid = lambda i: (i in ("dirt", "cobblestone", "cobbled_deepslate",
-                                 "netherrack", "andesite", "diorite", "granite")
-                           or i.endswith("_planks"))
-        if g.block(x, y + 2, z) == "air" and g.select(solid):
-            # Click the side of a wall block above head height.
-            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                if g.block(x + dx, y + 2, z + dz) != "air":
-                    g.use_on(x + 0.5 + dx * 0.5, y + 2.5, z + 0.5 + dz * 0.5)
-                    break
+        seal_in(g)
     g.wait(lambda: not g.is_night(), 700, 2)
+    return True
+
+
+def seal_in(g):
+    """Dig three blocks down and close the hole above our head."""
+    x, y, z = g.block_pos()
+    g.goto(x, y - 3, z, timeout=60)
+    x, y, z = g.block_pos()
+    solid = lambda i: (i in ("dirt", "cobblestone", "cobbled_deepslate",
+                             "netherrack", "andesite", "diorite", "granite",
+                             "tuff", "sandstone")
+                       or i.endswith("_planks"))
+    if g.block(x, y + 2, z) == "air" and g.select(solid):
+        # Click the side of a wall block above head height.
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if g.block(x + dx, y + 2, z + dz) != "air":
+                g.use_on(x + 0.5 + dx * 0.5, y + 2.5, z + 0.5 + dz * 0.5)
+                break
+
+
+def dig_in(g, facts):
+    """Badly hurt with mobs about: hide underground, eat, heal up."""
+    g.status = "hurt - digging in to recover"
+    seal_in(g)
+    g.wait(lambda: g.health() >= 16 or g.health() <= 0, 240, 2)
+    return True
+
+
+def recover(g, facts, pos):
+    """Walk back to where we died and pick the dropped items up."""
+    g.status = f"recovering gear at {pos}"
+    g.goto_near(*pos, radius=1, timeout=200)
+    g.sleep(4)
     return True
 
 
@@ -342,4 +364,5 @@ def idle(g, facts):
 
 SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "build_base": build_base, "smelt": smelt, "build_farm": build_farm,
-          "deliver": deliver, "assist": assist, "idle": idle}
+          "deliver": deliver, "assist": assist, "idle": idle,
+          "dig_in": dig_in, "recover": recover}
