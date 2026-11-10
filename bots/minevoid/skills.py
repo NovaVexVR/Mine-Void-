@@ -253,23 +253,11 @@ FURNITURE = (("crafting_table", -1), ("furnace", 0), ("chest", 1))
 
 
 def fix_base(g, facts):
-    """Fill holes in the base floor (Baritone digs down into the room, and
-    coal in the floor gets mined) and put back missing furniture."""
+    """Put back missing base furniture. (Pits in the floor, from Baritone
+    digging down or coal being mined out, are left alone: they are harmless
+    and bed placement skips cells without a floor.)"""
     x, y, z = facts["base"]
     g.status = "repairing base"
-    filler = lambda i: i in ("cobblestone", "cobbled_deepslate", "dirt",
-                             "andesite", "diorite", "granite", "tuff")
-    for dx in range(-2, 3):
-        for dz in range(-2, 3):
-            if g.block(x + dx, y - 1, z + dz) not in AIR + ("water", "lava"):
-                continue
-            item = next((i for i in g.inv() if filler(i)), None)
-            if item is None:
-                return
-            # A deeper hole needs its bottom filled first.
-            if g.block(x + dx, y - 2, z + dz) in AIR:
-                g.place_at(item, x + dx, y - 2, z + dz)
-            g.place_at(item, x + dx, y - 1, z + dz)
     for item, dx in FURNITURE:
         if g.block(x + dx, y, z - 2) == item or g.find_block(item, 4):
             continue
@@ -305,7 +293,8 @@ def bed(g, facts):
     g.status = "placing bed in base"
     for dx in BED_SLOTS:
         foot, head, stand = (x + dx, y, z + 1), (x + dx, y, z + 2), (x + dx, y, z - 1)
-        if not all(g.block(*c) in AIR for c in (foot, head, stand)):
+        if not all(g.block(*c) in AIR for c in (foot, head, stand)) or \
+                any(g.block(c[0], y - 1, c[2]) in AIR for c in (foot, head, stand)):
             continue
         # A bed points the way we face, so stand exactly north of the foot
         # (facing south) or the bed ends up sideways and blocks other slots.

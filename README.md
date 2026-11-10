@@ -62,17 +62,45 @@ curl -X POST localhost:8765/goal -d '{"file": "goals/my_goal.json"}'
 ```
 
 * `team_have` – done once the whole team holds that much **per bot**.
-* `requires` / `repeat` – only for bots that hold something (e.g. raw iron).
+* `requires` / `requires_any` / `needs_fact` – the task only applies to bots
+  that hold something (raw iron, wool) or once a fact exists (`base`).
+* `repeat` / `cooldown` – repeatable jobs (smelting, harvesting every 20 min).
+* `preempt` – worth dropping other work for (placing a bed).
 
-The plan's `sharing` rules make it a team effort: a bot holding spare food or
-iron walks to a teammate who is short and hands it over, a bot in trouble
-gets the nearest teammate sent to `assist`, and everyone stays within a
-leash of home so they can reach each other.
+Assignments are sticky: a bot keeps its job until it finishes or fails,
+unless a teammate needs help or a `preempt` task applies.
 
-Skills available to plans: `gather`, `craft`, `hunt`, `build_base`,
-`build_farm`, `smelt`, `shelter`, `deliver`, `assist`, `idle` (see
-`bots/minevoid/skills.py`). Bots eat, defend themselves, dig in when badly
-hurt and recover their gear after dying in the background of every skill.
+**Teamwork.** The coordinator hands out roles (two hunters, a base builder, a
+farmer, two iron miners) and turns the plan's `sharing` rules and `kit` into
+jobs between bots: a bot with spare food walks over to a hungry teammate and
+hands it over, a bot in trouble gets the nearest teammate sent to `assist`,
+and everyone stays within a leash of home.
+
+**The iron kit** (`kit` in the plan) is the gear every bot should own, in
+priority order: iron pickaxe, shield, iron sword, then chestplate, helmet,
+boots and leggings (30 iron each). Miners keep mining until the whole team's
+kit is paid for; spare iron is handed out one tier at a time, so everybody
+has a pickaxe before anybody gets a chestplate. Shields go to the off-hand
+and are raised against skeletons; Meteor's Auto Armor wears the armour.
+
+**Base, beds and nights.** The base is a 5x5 room dug 8 blocks under world
+spawn with a crafting table, furnace and chest, lit with torches. Each bot
+brings three wool (from sheep), crafts a bed at the base and places it there,
+which moves its respawn point into the base. At night every bot goes home and
+sleeps; with `players_sleeping_percentage` at 50 (set by `server/start.sh`)
+two sleepers skip the night.
+
+**Food.** Two hunters range twice as far as other workers (animals near home
+do not respawn), raw meat is cooked at the base, a fisher uses Meteor's Auto
+Fish once someone has string for a rod, and the wheat farm is harvested and
+replanted with Baritone's `farm` and baked into bread.
+
+Skills available to plans: `gather`, `craft`, `hunt`, `fish`, `smelt`,
+`build_base`, `light_base`, `bed`, `build_farm`, `harvest`, `shelter`,
+`deliver`, `assist`, `idle` (see `bots/minevoid/skills.py`). In the
+background of every skill bots eat, fight (backing off from creepers), dig
+in when badly hurt or unarmed among mobs, and go back for their gear once
+after dying.
 
 ### Scaling
 
@@ -93,24 +121,28 @@ scripts/mc-cmd.sh "time set day"      # server console command
 
 ## Status
 
-Verified in live runs with three bots:
+Seen working in live runs with three bots:
 
 * server + anti-cheat + anti-xray, headless clients joining, autorun agent
 * wood -> wooden tools -> stone tools (about 6-8 minutes per bot from nothing)
-* hunting, eating, night shelter, underground base room with table + chest
-* legit iron mining, smelting, iron pickaxe and sword (one bot, ~15 minutes)
-* role split by the coordinator (hunter / base builder / farmer / miners),
-  home leash, recovery after death
+* hunting, eating, night shelter in the base, underground base with table,
+  furnace and chest
+* legit iron mining, smelting, iron pickaxe and sword
+* role split, home leash, recovery after death, sticky roles
+* a bed crafted at the base and placed, "Respawn point set", the bot
+  sleeping in it at night
 
-Written but not yet seen working end to end: item hand-offs (`deliver`),
-`assist`, and the wheat farm. Phases after iron (diamonds, Nether, blaze
-rods, ender pearls, stronghold, dragon) are `todo` in the plan with no skills.
+Written but not yet seen end to end: item hand-offs (`deliver`), `assist`
+reaching a rescue, the iron kit hand-outs, shields/armour, fishing, farm
+harvests, skipping a night (needs two beds). Phases after iron (diamonds,
+Nether, blaze rods, ender pearls, stronghold, dragon) are `todo`.
 
 Known problems:
 
-* **Nights kill bots.** Unarmoured bots die to mob packs, and mobs camp the
-  world spawn so a respawning bot can die repeatedly. Next steps: beds (skip
-  the night, move the spawn point into the base), shields and iron armour.
+* **Food is scarce.** Animals near spawn are used up and do not respawn, so
+  hunters range far and slowly; fishing needs string first. This is the
+  current bottleneck: hungry bots cannot regenerate health.
+* **Wool for beds** depends on finding sheep; only one bed so far.
 * GrimAC cancels attacks from beyond 3 blocks (`Reach`), so attack range is
   capped at 2.9. Its `Simulation` (movement) check also fired in two bursts
   on one bot early on; the cause was not pinned down.
