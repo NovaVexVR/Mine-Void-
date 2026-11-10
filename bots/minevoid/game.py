@@ -30,6 +30,10 @@ BARITONE_SETTINGS = {
     "allowParkour": "false",
     "allowSprint": "true",
     "antiCheatCompatibility": "true",
+    # Turn the real camera, not just the rotation sent to the server: GrimAC
+    # (BadPacketsJ) rejects block placements whose look direction differs
+    # from the last reported rotation, which left bots stuck retrying.
+    "freeLook": "false",
     "allowBreak": "true",
     "allowPlace": "true",
     "rightClickContainerOnArrival": "true",

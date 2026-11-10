@@ -69,7 +69,7 @@ class Agent:
         self.last_sighting = now
         try:
             seen = m.entities(type=".*\\.(cow|pig|sheep|chicken|rabbit|mooshroom)$",
-                              max_distance=64, limit=12)
+                              max_distance=128, limit=12)
         except Exception:
             return []
         return [[e.type.rsplit(".", 1)[-1]] + [round(v) for v in e.position]
