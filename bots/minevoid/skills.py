@@ -430,6 +430,70 @@ def seal_base(g, facts):
     return not left
 
 
+def surface_y(g, x, z, start):
+    """Height of the topmost solid block in a column (scanning down)."""
+    ys = list(range(start + 40, start - 1, -1))
+    kinds = m.getblocklist([[x, yy, z] for yy in ys])
+    for yy, k in zip(ys, kinds):
+        k = short(k)
+        if k not in AIR and k not in ("short_grass", "tall_grass", "snow") \
+                and not k.endswith(("_leaves", "_log")):
+            return yy
+    return start
+
+
+def build_exit(g, facts):
+    """Give the base a walkable way out: a door in the east wall and a
+    staircase up to the surface. Climbing our own vertical shafts needs
+    block placing (pillaring) and kept getting bots stuck; stairs need
+    nothing, and the door keeps mobs out (zombies cannot open it)."""
+    x, y, z = facts["base"]
+    dz = z - 1
+    g.status = "digging the base stairs"
+    if not g.goto(x, y, z, timeout=120, near=1):
+        return False
+    # Column k=1 is the doorway (level with the floor); each next column is
+    # one higher, cleared 3 high so there is head room to step up.
+    columns, k = [], 1
+    while k < 40:
+        cx = x + 2 + k
+        stand = y if k == 1 else y + k - 1
+        columns.append((cx, stand))
+        if k > 1 and stand > surface_y(g, cx, dz, y):
+            break
+        k += 1
+    g.b("sel clear")
+    for cx, stand in columns:
+        g.b(f"sel 1 {cx} {stand} {dz}")
+        g.b(f"sel 2 {cx} {stand + (1 if cx == x + 3 else 2)} {dz}")
+    g.b("sel cleararea")
+    g.sleep(3)
+    g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 600, 2)
+    g.b("sel clear")
+    g.stop()
+    g.goto(x, y, z, timeout=120, near=1)
+    door = next((i for i in g.inv() if i.endswith("_door")), None)
+    if door is None:
+        wood = max((i for i in g.inv() if i.endswith("_planks")),
+                   key=lambda i: g.inv()[i], default=None)
+        if wood is None or g.inv()[wood] < 6:
+            log = max((i for i in g.inv() if CLASSES["log"](i)),
+                      key=lambda i: g.inv()[i], default=None)
+            if log is None and not gather(g, facts, "logs", "log", 2, timeout=300):
+                return False
+            crafting.craft(g, "planks", 2)
+            wood = max((i for i in g.inv() if i.endswith("_planks")),
+                       key=lambda i: g.inv()[i])
+        door = wood.replace("_planks", "_door")
+        if not crafting.craft(g, door):
+            return False
+    if not g.place_at(door, x + 3, y, dz, stand=(x + 2, y, dz)):
+        g.log("could not hang the base door")
+    top = columns[-1]
+    g.log(f"base exit: door at {[x + 3, y, dz]}, stairs to {[top[0], top[1], dz]}")
+    return {"base_exit": [top[0], top[1], dz]}
+
+
 BED_SLOTS = (0, -1, 1, -2, 2)
 
 
@@ -734,5 +798,5 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "deliver": deliver, "assist": assist, "idle": idle,
           "dig_in": dig_in, "recover": recover,
           "light_base": light_base, "bed": bed, "fish": fish,
-          "seal_base": seal_base,
+          "seal_base": seal_base, "build_exit": build_exit,
           "harvest": harvest}

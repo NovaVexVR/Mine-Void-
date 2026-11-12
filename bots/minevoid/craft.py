@@ -42,6 +42,11 @@ for _c in ("white orange magenta light_blue yellow lime pink gray light_gray "
            "cyan purple blue brown green red black").split():
     RECIPES[f"{_c}_bed"] = (("WWW", "PPP"), {"W": f"{_c}_wool", "P": "planks"}, 1)
 
+# Doors need six planks of one wood.
+for _w in ("oak spruce birch jungle acacia dark_oak mangrove cherry pale_oak "
+           "bamboo crimson warped").split():
+    RECIPES[f"{_w}_door"] = (("PP", "PP", "PP"), {"P": f"{_w}_planks"}, 3)
+
 # Raw materials a bot can go and get by itself: class -> (block group, count pad)
 RAW = {"log": "logs", "stone": "stone"}
 gather_hook = None  # set by skills: gather_hook(g, blocks, item_spec, count)
