@@ -468,6 +468,28 @@ class Game:
         time.sleep(0.1)
         m.player_press_attack(False)
 
+    def use_on_entity(self, entity, height=0.7):
+        """Right-click an entity (shear, feed, breed). Vanilla/Grim reach
+        for entities is 3 blocks, so get close first."""
+        x, y, z = entity.position
+        if math.dist((x, y, z), self.pos()) > 2.6:
+            self.goto_near(math.floor(x), math.floor(y), math.floor(z),
+                           radius=1, timeout=20)
+            fresh = m.entities(uuid=entity.uuid, max_distance=10)
+            if not fresh:
+                return False
+            x, y, z = fresh[0].position
+        m.player_look_at(x, y + height, z)
+        time.sleep(0.3)
+        target = m.player_get_targeted_entity(3.0)
+        if not target or target.uuid != entity.uuid:
+            return False
+        m.player_press_use(True)
+        time.sleep(0.2)
+        m.player_press_use(False)
+        time.sleep(0.3)
+        return True
+
     def toss(self, pred, n):
         """Throw up to n matching items out in front of the bot."""
         self.close_screen()

@@ -158,6 +158,44 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
     return g.count(food) >= count
 
 
+def shear(g, facts, timeout=300):
+    """Shear sheep until we hold three wool of one colour. Unlike killing,
+    this keeps the flock (wool grows back), so beds stop depending on
+    finding new sheep."""
+    wool = lambda: max((n for i, n in g.inv().items() if i.endswith("_wool")),
+                       default=0)
+    end, tried = time.time() + timeout, set()
+    while wool() < 3 and time.time() < end:
+        g.status = f"shearing sheep ({wool()}/3 wool)"
+        flock = [e for e in m.entities(type=".*\\.sheep$", max_distance=48,
+                                       sort="nearest", nbt=True)
+                 if e.uuid not in tried and "Sheared:1b" not in (e.nbt or "")
+                 and "Age:-" not in (e.nbt or "")]
+        if not flock:
+            # nothing woolly in sight: head for a reported sheep
+            spots = [a for a in facts.get("_animals", []) if a[0] == "sheep"]
+            if not spots:
+                g.b("explore")
+                g.sleep(30)
+                g.stop()
+                continue
+            a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
+            g.goto_near(*a[1:], radius=6, timeout=90)
+            tried.clear()
+            continue
+        sheep = flock[0]
+        tried.add(sheep.uuid)
+        g.select(lambda i: i == "shears")
+        if g.use_on_entity(sheep, height=0.8):
+            x, y, z = sheep.position
+            g.sleep(0.5)
+            g.goto_near(math.floor(x), math.floor(y), math.floor(z), radius=0,
+                        timeout=8)  # walk over the dropped wool
+            g.sleep(1)
+    g.stop()
+    return wool() >= 3
+
+
 def shelter(g, facts):
     """Sit out the night. With a base: go there and sleep in our bed (which
     skips the night once enough of the team is in bed). Without one: dig a
@@ -393,8 +431,11 @@ def bed(g, facts):
     wool = lambda: max((n for i, n in g.inv().items() if i.endswith("_wool")),
                        default=0)
     while not g.count(CLASSES["bed"]) and wool() < 3:
-        if not hunt(g, facts, count=g.count(CLASSES["wool"]) + 1,
-                    animals="sheep", item="wool", timeout=480):
+        if g.count(lambda i: i == "shears"):
+            if not shear(g, facts, timeout=480):
+                return False
+        elif not hunt(g, facts, count=g.count(CLASSES["wool"]) + 1,
+                      animals="sheep", item="wool", timeout=480):
             return False  # no sheep found this time
     # Craft at the base: it has a crafting table, and we may be standing
     # somewhere with no room to put one down (e.g. a night-time hole).

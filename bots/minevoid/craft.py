@@ -25,6 +25,7 @@ RECIPES = {
     "torch": (("C", "S"), {"C": "coal", "S": "stick"}, 4),
     "bucket": (("I I", " I "), {"I": "iron_ingot"}, 1),
     "bread": (("WWW",), {"W": "wheat"}, 1),
+    "shears": ((" I", "I "), {"I": "iron_ingot"}, 1),
     "fishing_rod": (("  S", " SX", "S X"), {"S": "stick", "X": "string"}, 1),
     "shield": (("PIP", "PPP", " P "), {"P": "planks", "I": "iron_ingot"}, 1),
     "iron_helmet": (("III", "I I"), {"I": "iron_ingot"}, 1),
