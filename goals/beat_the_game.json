@@ -41,7 +41,7 @@
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
   ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
-   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
+   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
   ]}
  ],
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shears", 2], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},

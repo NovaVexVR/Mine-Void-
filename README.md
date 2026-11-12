@@ -119,6 +119,42 @@ scripts/botexec.py Void1 'print(g.inv(), g.pos())'
 scripts/mc-cmd.sh "time set day"      # server console command
 ```
 
+## Roadmap
+
+Towards the first goal (kill the Ender Dragon). Done items are verified in
+live runs; see Status for details.
+
+**Stage 1 – early game** (mostly working, being stabilised)
+1. Wood -> wooden -> stone tools, food, underground base at spawn – done
+2. Sustainable food: shared animal sightings (done), cooking (done), wheat
+   farm + harvests, fishing once someone has string, breeding animals
+3. A bed for every bot in the base (respawn point, sleep through nights) –
+   two of three so far; shears to shear sheep instead of killing them
+4. Iron kit for every bot: pickaxe, shears, shield, sword, full armour
+
+**Stage 2 – mid game**
+5. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
+6. Enchanting: enchanting table (obsidian, diamonds, a book), bookshelves
+   (books from sugar cane paper + leather), lapis, and XP from mining,
+   smelting and mob kills; enchant the kit (Protection, Sharpness,
+   Efficiency, Unbreaking, Power on a bow). Later an anvil to combine books
+   and repair gear
+7. Nether portal (obsidian via bucket + lava, or mined with diamond pick)
+8. Nether: gold armour for piglins, fortress, ~6 blaze rods
+9. ~12 ender pearls (endermen, or bartering gold with piglins)
+
+**Stage 3 – the dragon**
+10. Eyes of ender, triangulate the stronghold from two throw points
+11. Activate the portal, bring blocks, bows, beds and food
+12. Destroy the end crystals, kill the dragon
+
+**Infrastructure** (alongside)
+* A small Fabric mod for instant inventory work (crafting via Minescript
+  reflection takes 5-20 s)
+* Bots on your own machines: coordinator reachable over the network with a
+  token, launcher for your OS
+* More than three bots; dashboard with death and anti-cheat stats
+
 ## Status
 
 Seen working in live runs with three bots:
