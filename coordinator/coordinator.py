@@ -36,6 +36,7 @@ class Coordinator:
         self.facts = {}     # shared knowledge, e.g. {"base": [x, y, z]}
         self.done = {}      # task id -> [bot names] (sticky/team completions)
         self.done_at = {}   # task id -> time last finished (for cooldowns)
+        self.failed_at = {}  # (bot, task id) -> time it last failed
         self.animals = {}   # (kind, x//16, z//16) -> [kind, x, y, z, seen_at]
         self.events = []    # recent log lines for the dashboard
         self.load_goal(goal_file)
@@ -146,7 +147,11 @@ class Coordinator:
         return None
 
     # -- task selection ----------------------------------------------------
+    FAIL_BACKOFF = 300  # seconds a bot leaves a task alone after failing it
+
     def satisfied(self, task, name, inv):
+        if time.time() - self.failed_at.get((name, task["id"]), 0) < self.FAIL_BACKOFF:
+            return True  # failed just now: do something else for a while
         if "requires" in task and not has_all(inv, task["requires"]):
             return True  # not applicable to this bot right now
         if "needs_fact" in task and task["needs_fact"] not in self.facts:
@@ -326,6 +331,8 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
+                if r["event"].endswith(" failed"):
+                    self.failed_at[(name, r["event"][:-len(" failed")])] = time.time()
             now = time.time()
             for kind, x, y, z in r.get("animals") or []:
                 self.animals[(kind, x // 16, z // 16)] = [kind, x, y, z, now]
