@@ -87,8 +87,8 @@ and are raised against skeletons; Meteor's Auto Armor wears the armour.
 spawn with a crafting table, furnace and chest, lit with torches. Each bot
 brings three wool (from sheep), crafts a bed at the base and places it there,
 which moves its respawn point into the base. At night every bot goes home and
-sleeps; with `players_sleeping_percentage` at 50 (set by `server/start.sh`)
-two sleepers skip the night.
+sleeps; with `players_sleeping_percentage` at 30 (set by `server/start.sh`)
+one sleeper out of three skips the night.
 
 **Food.** Two hunters range twice as far as other workers (animals near home
 do not respawn), raw meat is cooked at the base, a fisher uses Meteor's Auto

@@ -15,8 +15,8 @@ echo $! > server.pid
 echo "server starting (pid $!), waiting for 'Done'..."
 for _ in $(seq 180); do
   if grep -q 'Done (' server.out 2>/dev/null; then
-    # Half the team in bed skips the night (vanilla rule, default 100%).
-    printf 'gamerule players_sleeping_percentage 50\n' > console.in
+    # A third of the team in bed skips the night (vanilla rule, default 100%).
+    printf 'gamerule players_sleeping_percentage 30\n' > console.in
     echo "server up"; exit 0
   fi
   kill -0 "$(cat server.pid)" 2>/dev/null || { tail -30 server.out; exit 1; }
