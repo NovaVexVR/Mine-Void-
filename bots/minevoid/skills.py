@@ -591,7 +591,7 @@ def smelt(g, facts, input, output, count):
     return g.count(matcher(output)) >= 1
 
 
-def find_water(g, center, radius=24):
+def find_water(g, center, radius=8):
     """Nearest open water surface block (water with air above) to center."""
     cx, cy, cz = center
     lo, hi = [cx - radius, cy - 4, cz - radius], [cx + radius, cy + 12, cz + radius]
@@ -618,11 +618,15 @@ def fish(g, facts, count=20, timeout=900):
     home = facts.get("base") or g.block_pos()
     water = None
     for _ in range(4):
-        water = find_water(g, g.block_pos()) or find_water(g, home, 40)
+        water = find_water(g, g.block_pos(), 8)
         if water:
             break
-        g.b("explore")  # loads more chunks around us
-        g.sleep(20)
+        # Baritone knows where water is from the chunks it has seen; a big
+        # block-region read here would exceed Minescript's size limit.
+        come_home(g, facts, leash=LEASH // 2)
+        g.b("goto water")
+        g.sleep(2)
+        g.wait(lambda: not g.busy(), 120, 1)
         g.stop()
     if not water:
         g.log("no water to fish in")

@@ -15,6 +15,7 @@ import traceback
 import urllib.request
 
 import minescript as m
+from java import JavaClass
 
 from . import craft, game, items, skills
 from .game import Game
@@ -82,7 +83,11 @@ class Agent:
         dead = g.health() <= 0
         # Meteor's Auto Respawn is quicker than our ticks, so also notice a
         # death by the player's entity id changing (respawning makes a new one).
-        eid = (g.mc.player.getId(), m.world_info().dimension)
+        # (The entity id survives a respawn; the client-side player object
+        # does not, so compare object identity.)
+        if not hasattr(self, "_identity"):
+            self._identity = JavaClass("java.lang.System").identityHashCode
+        eid = (self._identity(g.mc.player), m.world_info().dimension)
         last = getattr(self, "entity_id", None)
         if not isinstance(last, tuple):
             last = eid  # first tick, or state from an older code version
