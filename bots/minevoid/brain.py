@@ -80,12 +80,33 @@ class Agent:
         g, now = self.g, time.time()
         self.serve_debug()
         dead = g.health() <= 0
-        if dead and not self.was_dead:
+        # Meteor's Auto Respawn is quicker than our ticks, so also notice a
+        # death by the player's entity id changing (respawning makes a new one).
+        eid = (g.mc.player.getId(), m.world_info().dimension)
+        last = getattr(self, "entity_id", eid)
+        # (A dimension change also makes a new entity; that is not a death.)
+        respawned = last[0] != eid[0] and last[1] == eid[1]
+        self.entity_id = eid
+        if (dead and not self.was_dead) or respawned:
             self.death = (getattr(self, "last_alive_pos", None), time.time())
             self.report(event=f"died at {self.death[0]}")
         self.was_dead = dead
         if dead:
             return
+        if g.mc.player.getAirSupply() < 120:
+            # Drowning (underwater cave, flooded tunnel): stop pathing and
+            # swim straight up until we can breathe again.
+            g.b("pause")
+            try:
+                m.player_set_orientation(m.player_orientation()[0], -90)
+                m.player_press_jump(True)
+                end = time.time() + 6
+                while time.time() < end and g.mc.player.getAirSupply() < 280 \
+                        and g.health() > 0:
+                    time.sleep(0.2)
+            finally:
+                m.player_press_jump(False)
+                g.b("resume")
         if now - self.last_fight > 1 and g.hostiles(4.5):
             # Baritone owns the camera while pathing, so pause it, fight
             # properly, then let it carry on. (Kill Aura helps as well.)
