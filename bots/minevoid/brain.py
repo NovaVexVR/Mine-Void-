@@ -40,6 +40,9 @@ class Agent:
     # -- coordinator -------------------------------------------------------
     def report(self, **extra):
         g = self.g
+        lost, g.lost = getattr(g, "lost", []), []
+        if lost:
+            extra["undone"] = lost
         body = dict(name=g.name, pos=[round(v) for v in g.pos()],
                     health=round(g.health(), 1), food=g.hunger(),
                     inventory=g.inv(), status=g.status, night=g.is_night(),

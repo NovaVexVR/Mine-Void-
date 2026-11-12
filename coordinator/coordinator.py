@@ -312,6 +312,12 @@ class Coordinator:
             for k, v in (r.get("facts") or {}).items():
                 self.facts[k] = v
                 self.log(f"{name} set fact {k}={v}")
+            for tid in r.get("undone") or []:
+                if name in self.done.get(tid, []):
+                    self.done[tid].remove(name)
+                self.facts.pop(f"{tid}_{name}", None)
+                self.log(f"{name} lost {tid}; will redo it")
+                self.save()
             if r.get("done"):
                 self.done_at[r["done"]] = time.time()
                 self.done.setdefault(r["done"], [])

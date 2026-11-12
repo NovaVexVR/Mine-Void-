@@ -34,6 +34,8 @@ BARITONE_SETTINGS = {
     # (BadPacketsJ) rejects block placements whose look direction differs
     # from the last reported rotation, which left bots stuck retrying.
     "freeLook": "false",
+    # Never mine base fixtures while pathing (Baritone broke the beds).
+    "blocksToDisallowBreaking": "crafting_table,furnace,chest,torch,wall_torch,white_bed,orange_bed,magenta_bed,light_blue_bed,yellow_bed,lime_bed,pink_bed,gray_bed,light_gray_bed,cyan_bed,purple_bed,blue_bed,brown_bed,green_bed,red_bed,black_bed,oak_door,spruce_door,birch_door,jungle_door,acacia_door,dark_oak_door,mangrove_door,cherry_door,pale_oak_door",
     "allowBreak": "true",
     "allowPlace": "true",
     "rightClickContainerOnArrival": "true",
@@ -67,6 +69,7 @@ class Game:
         self.baritone = api.getProvider().getPrimaryBaritone()
         self.on_tick = None  # set by the agent: heartbeat + survival
         self.status = "starting"
+        self.lost = []  # finished tasks whose result has since been lost
         self._click = None
 
     def setup(self):

@@ -206,6 +206,12 @@ def shelter(g, facts):
             and g.goto(*base, timeout=180, near=2):
         seal_base(g, facts)
         bed = facts.get(f"bed_{g.name}")
+        if bed and not g.block(*bed).endswith("_bed"):
+            # Our bed is gone (broken while pathing, before the guard
+            # existed): tell the coordinator so the bed task comes back.
+            g.log(f"bed at {bed} is missing")
+            g.lost.append("bed")
+            bed = None
         last_try = 0
 
         def morning():
