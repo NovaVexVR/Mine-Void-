@@ -101,10 +101,22 @@ def main():
     inst, launch = prepare(name)
     disp = display_for(name)
 
+    # A lock left by a previous container/session would stop Xvfb starting.
+    lock, sock = f"/tmp/.X{disp}-lock", f"/tmp/.X11-unix/X{disp}"
+    for stale in (lock, sock):
+        if os.path.exists(stale):
+            os.remove(stale)
     xvfb = subprocess.Popen(
         ["Xvfb", f":{disp}", "-screen", "0", "640x480x24", "-nolisten", "tcp"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(1)
+    # The game crashes ("GLFW: failed to detect any supported platform") if
+    # it starts before the display accepts connections.
+    for _ in range(100):
+        if os.path.exists(sock) or xvfb.poll() is not None:
+            break
+        time.sleep(0.2)
+    if xvfb.poll() is not None or not os.path.exists(sock):
+        sys.exit(f"{name}: Xvfb :{disp} did not start")
 
     env = dict(os.environ, DISPLAY=f":{disp}", LIBGL_ALWAYS_SOFTWARE="1",
                GALLIUM_DRIVER="llvmpipe", LP_NUM_THREADS="1",

@@ -582,7 +582,10 @@ def build_farm(g, facts, plots=8):
         if g.count(seeds) < 2:
             return False
     spots = []
+    home = facts.get("base") or m.world_info().spawn
     for attempt in range(8):
+        # Close to home: the farm has to be tended (and defended) for good.
+        come_home(g, facts, leash=LEASH // 2)
         g.status = "looking for water"
         spots = farm_spots(g)
         if len(spots) >= 2:
