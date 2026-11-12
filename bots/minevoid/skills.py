@@ -356,6 +356,15 @@ def fix_base(g, facts):
     and bed placement skips cells without a floor.)"""
     x, y, z = facts["base"]
     g.status = "repairing base"
+    for dx in range(-2, 3):
+        for dz in range(-2, 3):
+            for py in (y - 2, y - 1):  # a pit's bottom first
+                if g.block(x + dx, py, z + dz) not in AIR:
+                    continue
+                filler = max(FILLERS, key=lambda i: g.count(lambda j, i=i: j == i))
+                if not g.count(lambda j: j == filler):
+                    break
+                g.place_against(filler, x + dx, py, z + dz)
     for item, dx in FURNITURE:
         if g.block(x + dx, y, z - 2) == item or g.find_block(item, 4):
             continue
@@ -450,13 +459,21 @@ def bed(g, facts):
             return False
     bed_item = next(i for i in g.inv() if i.endswith("_bed"))
     g.status = "placing bed in base"
-    for dx in BED_SLOTS:
-        foot, head, stand = (x + dx, y, z + 1), (x + dx, y, z + 2), (x + dx, y, z - 1)
-        if not all(g.block(*c) in AIR for c in (foot, head, stand)) or \
-                any(g.block(c[0], y - 1, c[2]) in AIR for c in (foot, head, stand)):
+    floor_ok = lambda c: g.block(c[0], y - 1, c[2]) not in AIR
+    free = lambda c: g.block(*c) in AIR and floor_ok(c)
+    inside = lambda c: abs(c[0] - x) <= 2 and abs(c[2] - z) <= 2
+    # Preferred slots first (south-facing row), then any free pair of cells:
+    # the bed's head goes where we face, so we stand behind its foot.
+    slots = [((x + dx, y, z + 1), (0, 1)) for dx in BED_SLOTS]
+    slots += [((x + dx, y, z + dz), d) for dx in range(-2, 3) for dz in range(-2, 3)
+              for d in ((0, 1), (0, -1), (1, 0), (-1, 0))]
+    for foot, (ddx, ddz) in slots:
+        head = (foot[0] + ddx, y, foot[2] + ddz)
+        stand = (foot[0] - ddx, y, foot[2] - ddz)
+        if not all(inside(c) and free(c) for c in (foot, head, stand)):
             continue
-        # A bed points the way we face, so stand exactly north of the foot
-        # (facing south) or the bed ends up sideways and blocks other slots.
+        if (x, y, z) in (foot, head):
+            continue  # keep the room centre clear: bots path to it
         g.goto(*stand, timeout=40)
         if g.block_pos()[::2] != [stand[0], stand[2]]:
             continue
