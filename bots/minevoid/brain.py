@@ -83,7 +83,9 @@ class Agent:
         # Meteor's Auto Respawn is quicker than our ticks, so also notice a
         # death by the player's entity id changing (respawning makes a new one).
         eid = (g.mc.player.getId(), m.world_info().dimension)
-        last = getattr(self, "entity_id", eid)
+        last = getattr(self, "entity_id", None)
+        if not isinstance(last, tuple):
+            last = eid  # first tick, or state from an older code version
         # (A dimension change also makes a new entity; that is not a death.)
         respawned = last[0] != eid[0] and last[1] == eid[1]
         self.entity_id = eid
