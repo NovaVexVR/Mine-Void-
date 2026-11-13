@@ -1107,16 +1107,20 @@ def build_farm_room(g, facts, plots=20):
     room = [(cx, cy, cz) for cx in range(x - 3, x - 9, -1)  # door side first
             for cz in range(z - 2, z + 3) for cy in range(y, y + 3)
             if cx != x - 3 or cz == z]                      # doorway: one wide
-    g.b("sel clear")
-    g.b(f"sel 1 {x - 8} {y} {z - 2}")
-    g.b(f"sel 2 {x - 4} {y + 2} {z + 2}")
-    g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
-    g.b(f"sel 2 {x - 3} {y + 2} {z}")
-    g.b("sel cleararea")
-    g.sleep(3)
-    g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 300, 2)
-    g.b("sel clear")
-    g.stop()
+    solid = [c for c, k in zip(room, m.getblocklist([list(c) for c in room]))
+             if short(k) not in AIR]
+    if len(solid) > len(room) // 2:
+        # Only for a fresh room: the builder also digs out soil already laid.
+        g.b("sel clear")
+        g.b(f"sel 1 {x - 8} {y} {z - 2}")
+        g.b(f"sel 2 {x - 4} {y + 2} {z + 2}")
+        g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
+        g.b(f"sel 2 {x - 3} {y + 2} {z}")
+        g.b("sel cleararea")
+        g.sleep(3)
+        g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 300, 2)
+        g.b("sel clear")
+        g.stop()
     # Baritone's builder stopped early and left most of the room solid
     # (nowhere to put the soil): break whatever is left ourselves.
     left = dig_out(g, room, keep=set(soil))
