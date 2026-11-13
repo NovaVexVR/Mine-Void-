@@ -582,6 +582,41 @@ FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
 CLUTTER = FILLERS + ("gravel", "sand", "stone", "deepslate", "grass_block")
 
 
+def base_interior(base, farm_room=False):
+    """Cells of the rooms themselves: the base room, and the farm room and
+    its doorway west of it."""
+    x, y, z = base
+    cells = {(cx, cy, cz) for cx in range(x - 2, x + 3) for cz in range(z - 2, z + 3)
+             for cy in range(y, y + 3)}
+    if farm_room:
+        cells |= {(cx, cy, cz) for cx in range(x - 8, x - 3)
+                  for cz in range(z - 2, z + 3) for cy in range(y, y + 3)}
+        cells |= {(x - 3, cy, z) for cy in range(y, y + 3)}
+    return cells
+
+
+def base_shell(g, base, farm_room=False):
+    """Air cells in the one-block shell around the rooms (walls, floor,
+    ceiling), skipping the door. Nearest-to-the-floor first."""
+    x, y, z = base
+    inside = base_interior(base, farm_room)
+    shell = {(cx + dx, cy + dy, cz + dz) for cx, cy, cz in inside
+             for dx in (-1, 0, 1) for dy in (-1, 0, 1) for dz in (-1, 0, 1)} - inside
+    shell = sorted(shell, key=lambda c: (c[1], c[0], c[2]))
+    kinds = m.getblocklist([list(c) for c in shell])
+    if any(k is None or "void_air" in k for k in kinds):
+        raise ValueError("base not loaded")
+    return [c for c, k in zip(shell, kinds)
+            if short(k) in AIR + ("water", "lava") and "door" not in k]
+
+
+def inside_spot(base, c, facts):
+    """A floor cell inside the rooms close to `c`, to place it from."""
+    inside = [p for p in base_interior(base, bool(facts.get("farm_room")))
+              if p[1] == base[1]]
+    return min(inside, key=lambda p: math.dist(p, c))
+
+
 def base_openings(g, base, farm_room=False):
     """Air cells of the base's enclosure that connect to the outside: flood
     fill the air from the room centre inside a box one block larger than
@@ -627,20 +662,18 @@ def seal_base(g, facts):
     if math.dist(g.pos(), (x, y, z)) > 10 and not g.goto(x, y, z, timeout=300, near=1):
         return False
     clear_clutter(g, facts)  # scaffolding hid the holes from view
-    # A solid ceiling first: the farm room broke into a cave overhead and
-    # plugs higher up kept getting dug through again.
-    west = x - 8 if facts.get("farm_room") else x - 2
-    ceiling = [(cx, y + 3, cz) for cx in range(west, x + 3) for cz in range(z - 2, z + 3)]
-    holes = [c for c, k in zip(ceiling, m.getblocklist([list(c) for c in ceiling]))
-             if short(k) in AIR]
-    for c in holes:
+    # Rebuild the whole shell (floor, walls, ceiling) around the rooms:
+    # Baritone had tunnelled through it in a dozen places, and patching only
+    # the holes the flood fill found never caught up.
+    holes = [c for c in base_shell(g, (x, y, z), bool(facts.get("farm_room")))]
+    for i, c in enumerate(holes):
         if filler_count() == 0:
             break
-        g.status = f"closing the ceiling ({len(holes)} holes)"
+        g.status = f"rebuilding the base walls ({len(holes) - i} holes)"
         filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
                                              and i != "dirt",
                                              g.count(lambda j, i=i: j == i)))
-        g.place_against(filler, *c, stand=(c[0], y, c[2]))
+        g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
     for _ in range(3):
         leaks = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
         if not leaks:
