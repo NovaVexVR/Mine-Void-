@@ -601,7 +601,11 @@ def seal_base(g, facts):
             filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
                                                  and i != "dirt",
                                                  g.count(lambda j, i=i: j == i)))
-            g.place_against(filler, *c)
+            # Work from inside: walking round to a hole from outside took a
+            # bot over the surface at nightfall, and a zombie got it.
+            west = x - 8 if facts.get("farm_room") else x - 2
+            stand = (min(max(c[0], west), x + 2), y, min(max(c[2], z - 2), z + 2))
+            g.place_against(filler, *c, stand=stand)
         g.goto(x, y, z, timeout=30, near=1)
     left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")

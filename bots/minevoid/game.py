@@ -420,7 +420,7 @@ class Game:
     FACES = {(0, -1, 0): "up", (0, 1, 0): "down", (1, 0, 0): "west",
              (-1, 0, 0): "east", (0, 0, 1): "north", (0, 0, -1): "south"}
 
-    def place_against(self, name, x, y, z):
+    def place_against(self, name, x, y, z, stand=None):
         """Place `name` at (x, y, z) by clicking whichever face of a solid
         neighbour we can see: works for wall gaps and shaft openings where
         there is no floor to click."""
@@ -443,7 +443,8 @@ class Game:
                     if self.wait_plain(placed, 1.0):
                         return True
             if attempt == 0:
-                self.goto_near(x, y, z, radius=2, timeout=20)
+                self.goto_near(*(stand or (x, y, z)), radius=1 if stand else 2,
+                               timeout=20)
         return False
 
     def equip_offhand(self, name):
