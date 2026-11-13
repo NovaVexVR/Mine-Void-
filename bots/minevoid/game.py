@@ -314,7 +314,7 @@ class Game:
         facing = state.split("facing=")[1].split(",")[0].rstrip("]") \
             if "facing=" in state else None
         ox, oz = self.TORCH_AIM.get(facing, (0.5, 0.5))
-        m.player_look_at(x + ox, y + (0.6 if facing else 0.3), z + oz)
+        m.player_look_at(x + ox, y + (0.6 if facing else 0.45), z + oz)
         time.sleep(0.3)
         hit = m.player_get_targeted_block(4.5)
         if not hit or list(hit.position) != [x, y, z]:
