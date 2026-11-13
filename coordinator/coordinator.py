@@ -292,6 +292,8 @@ class Coordinator:
                             if h != name)
             if len(others) >= plan.get("slots", 1) and others[0] < name:
                 return None  # over-subscribed (e.g. after a restart)
+        if plan.get("kit_mine") and "count" not in task.get("args", {}):
+            return self.kit_task(dict(task), inv)  # restored without its count
         return task
 
     def pick(self, name, inv, night=False, pos=None):
