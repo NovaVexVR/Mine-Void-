@@ -529,6 +529,31 @@ AIR = ("air", "cave_air")
 FURNITURE = (("crafting_table", -1), ("furnace", 0), ("chest", 1))
 
 
+def clear_clutter(g, facts):
+    """Baritone pillars and bridges with dirt/cobble and leaves it behind:
+    the room filled up with scaffolding that blocked walking, beds and the
+    view of holes in the ceiling that needed sealing."""
+    x, y, z = facts["base"]
+    clutter = [(x + dx, py, z + dz) for dx in range(-2, 3) for dz in range(-2, 3)
+               for py in (y, y + 1, y + 2)]
+    clutter += [(x - 3, py, z) for py in (y, y + 1, y + 2)]   # farm doorway
+    if facts.get("farm_room"):  # above the soil only
+        clutter += [(cx, py, cz) for cx in range(x - 8, x - 3)
+                    for cz in range(z - 2, z + 3) for py in (y + 1, y + 2)]
+    kinds = dict(zip(clutter, (short(k) for k in
+                               m.getblocklist([list(c) for c in clutter]))))
+    clutter = [c for c in clutter if kinds[c] in CLUTTER]
+    while clutter:
+        c = min(clutter, key=lambda c: math.dist(c, g.pos()))
+        clutter.remove(c)
+        g.status = f"clearing scaffolding from the base ({len(clutter)} left)"
+        if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
+            g.goto_near(c[0], y, c[2], radius=2, timeout=20)
+        g.stop()
+        g.select(lambda i: i.endswith("_pickaxe"))
+        g.break_block(*c, timeout=6)
+
+
 def fix_base(g, facts):
     """Put back missing base furniture. (Pits in the floor, from Baritone
     digging down or coal being mined out, are left alone: they are harmless
@@ -544,22 +569,7 @@ def fix_base(g, facts):
                 if not g.count(lambda j: j == filler):
                     break
                 g.place_against(filler, x + dx, py, z + dz)
-    # Baritone pillars and bridges with dirt/cobble and leaves it behind:
-    # the room filled up with scaffolding that blocked walking and beds.
-    clutter = [(x + dx, py, z + dz) for dx in range(-2, 3) for dz in range(-2, 3)
-               for py in (y, y + 1, y + 2)]
-    kinds = dict(zip(clutter, (short(k) for k in
-                               m.getblocklist([list(c) for c in clutter]))))
-    clutter = [c for c in clutter if kinds[c] in CLUTTER]
-    while clutter:
-        c = min(clutter, key=lambda c: math.dist(c, g.pos()))
-        clutter.remove(c)
-        g.status = f"clearing scaffolding from the base ({len(clutter)} left)"
-        if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
-            g.goto_near(c[0], y, c[2], radius=2, timeout=20)
-        g.stop()
-        g.select(lambda i: i.endswith("_pickaxe"))
-        g.break_block(*c, timeout=6)
+    clear_clutter(g, facts)
     for item, dx in FURNITURE:
         if g.block(x + dx, y, z - 2) == item or g.find_block(item, 4):
             continue
@@ -610,11 +620,11 @@ def seal_base(g, facts):
     way out in the morning; whoever shelters next seals it again."""
     x, y, z = facts["base"]
     filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
+    clear_clutter(g, facts)  # scaffolding hid the holes from view
     # A solid ceiling first: the farm room broke into a cave overhead and
     # plugs higher up kept getting dug through again.
     west = x - 8 if facts.get("farm_room") else x - 2
-    ceiling = [(cx, y + 3, cz) for cx in range(west, x + 3) for cz in range(z - 2, z + 3)
-               if cx != x - 3 or cz == z]
+    ceiling = [(cx, y + 3, cz) for cx in range(west, x + 3) for cz in range(z - 2, z + 3)]
     holes = [c for c, k in zip(ceiling, m.getblocklist([list(c) for c in ceiling]))
              if short(k) in AIR]
     for c in holes:
