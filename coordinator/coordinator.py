@@ -190,6 +190,8 @@ class Coordinator:
             return True
         if "until_fact" in task and task["until_fact"] in self.facts:
             return True
+        if task["scope"] == "each" and f"{task['id']}_{name}" in self.facts:
+            return True  # e.g. bed_Void1: survives restarts, cleared when lost
         if "skip_if_have" in task and has_all(inv, task["skip_if_have"]):
             return True
         if "team_have" in task:  # amounts are per bot, summed over the team
