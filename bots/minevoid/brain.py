@@ -124,7 +124,7 @@ class Agent:
                 spot = g.mc.player.getLastDeathLocation()
                 if spot.isPresent():
                     bp = spot.get().pos()
-                    pos = (bp.getX(), bp.getY(), bp.getZ())
+                    pos = [bp.getX(), bp.getY(), bp.getZ()]
             except Exception:
                 pass
             self.death = (pos, time.time())
