@@ -1037,6 +1037,24 @@ def farm_room_cells(base):
     return (cx, y, z), corners, soil
 
 
+def reclaim_water(g, cells):
+    """Scoop a misplaced water source in `cells` back into an empty bucket."""
+    if not g.count(lambda i: i == "bucket"):
+        return False
+    for c, k in zip(cells, m.getblocklist([list(c) for c in cells])):
+        if k and k.startswith("minecraft:water[level=0"):
+            g.status = "taking back misplaced water"
+            if math.dist(g.pos(), (c[0] + .5, c[1], c[2] + .5)) > 3:
+                g.goto_near(*c, radius=2, timeout=20)
+                g.stop()
+            g.select(lambda i: i == "bucket")
+            g.use_on(c[0] + 0.5, c[1] + 0.85, c[2] + 0.5, hold=0.2)
+            if g.count(lambda i: i == "water_bucket"):
+                g.log(f"farm room: took back the water at {list(c)}")
+                return True
+    return False
+
+
 def dig_out(g, cells, tries=2, keep=()):
     """Break every non-air block of `cells` (in order), walking up to each.
     Returns the cells still solid."""
@@ -1153,6 +1171,9 @@ def build_farm_room(g, facts, plots=20):
                 stand = (stand[0], y + 1, stand[2] + 1)  # not on the water hole
         g.place_at("dirt", *c, stand=stand)
     if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
+        reclaim_water(g, [(cx, y, cz) for cx in range(x - 8, x - 3)
+                          for cz in range(z - 2, z + 3) if (cx, y, cz) != centre])
+    if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
         # The only surface errand left: wait for daylight in bed (all of
         # the above is underground, so it gets done at night too).
         if g.is_night() or g.head_home(max(LEASH // 2, math.dist(g.pos(), facts.get("water") or g.pos()))):
@@ -1168,7 +1189,14 @@ def build_farm_room(g, facts, plots=20):
         if not all(g.block(*c) in ("dirt", "farmland") for c in ring):
             g.log("farm room: soil around the water cell is incomplete")
             return False
-        g.goto_near(*centre, radius=2, timeout=30)
+        # Pour from on top of the soil next to the hole, looking straight
+        # down: from floor level the laid soil was in the way and the water
+        # went into the next cell over.
+        g.goto(centre[0], y + 1, centre[2] + 1, timeout=30)
+        g.stop()
+        if g.block(*centre) not in AIR:
+            g.select(lambda i: i.endswith("_pickaxe") or i.endswith("_shovel"))
+            g.break_block(*centre, timeout=6)
         g.select(lambda i: i == "water_bucket")
         g.use_on(centre[0] + 0.5, y - 0.01, centre[2] + 0.5, hold=0.2)
         if g.block(*centre) != "water":
