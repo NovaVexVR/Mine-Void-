@@ -115,6 +115,11 @@ class Coordinator:
             if held >= cost:
                 return dict(task, id=f"craft_{item}", args={"item": item})
             stored = count(self.storage(), self.goal["kit"]["material"])
+            # Ingots already promised to other bots' crafting trips.
+            stored -= sum(b["task"]["args"].get("cost", 0)
+                          for b in self.active().values()
+                          if b.get("task", {}).get("skill") == "craft_from_storage"
+                          and b is not self.bots.get(self._asking))
             if held + stored >= cost and "base" in self.facts:
                 return dict(task, id=f"craft_{item}", skill="craft_from_storage",
                             at_base=True,
@@ -301,6 +306,8 @@ class Coordinator:
             return self.kit_task(dict(task), inv)  # restored without its count
         return task
 
+    _asking = None  # bot whose task is being picked (see kit_task)
+
     def pick(self, name, inv, night=False, pos=None):
         """First unfinished task this bot may take. At night, underground
         work from later phases is preferred over surface tasks; if only
@@ -364,6 +371,7 @@ class Coordinator:
             # Count this bot as part of the team before deciding its task.
             self.bots[name] = dict(r, seen=time.time(), task=prev.get("task", {}))
             inv = r.get("inventory", {})
+            self._asking = name
             current = prev.get("task")
             if not current and r.get("task_id"):
                 # Coordinator restarted: carry on with what the bot says it

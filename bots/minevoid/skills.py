@@ -240,7 +240,9 @@ def craft_from_storage(g, facts, item, material, cost):
     g.status = f"fetching {material} to craft {item}"
     contents = withdraw(g, facts, material, cost)
     if contents is None or g.count(lambda j: j == material) < cost:
-        return {"storage": contents} if contents is not None else False
+        if contents is not None:
+            g.pending_facts["storage"] = contents  # still correct the record
+        return False
     ok = craft(g, facts, item)
     stored = store(g, facts)
     return stored if ok else False
