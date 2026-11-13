@@ -68,9 +68,12 @@ def gather(g, facts, blocks, item, count, timeout=900):
                 g.b("explore")
                 g.sleep(15 + 10 * min(misses, 4))
                 g.b("stop")
-        state = ([round(v) for v in g.pos()], g.count(pred))
-        if state != last_state:
-            last_state, last_progress = state, time.time()
+        # Progress = more items, or really going somewhere. Jittering in
+        # place (Baritone fighting a path it cannot finish) is not progress.
+        have_now, here = g.count(pred), g.pos()
+        if last_state is None or have_now > last_state[0] \
+                or math.dist(here, last_state[1]) > 6:
+            last_state, last_progress = (have_now, here), time.time()
         elif time.time() - last_progress > 45:
             stuck += 1
             g.log(f"gather stuck ({stuck}), restarting baritone")
