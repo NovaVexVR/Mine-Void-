@@ -4,7 +4,11 @@
 cd "$(dirname "$0")/.."
 SINCE="${1:-$(date -d '15 min ago' +%H:%M)}"
 strip() { sed 's/\x1b\[[0-9;]*m//g'; }
-after() { awk -v t="$SINCE" '{ s=$0; sub(/^\[/, "", s); if (substr(s,1,5) >= t) print }'; }
+NOW="$(date +%H:%M)"
+# lines stamped between SINCE and now (handles a window that crosses midnight)
+after() { awk -v t="$SINCE" -v n="$NOW" '{ s=$0; sub(/^\[/, "", s); h=substr(s,1,5);
+  if (h !~ /^[0-9][0-9]:[0-9][0-9]$/) next;
+  if ((t <= n && h >= t && h <= n) || (t > n && (h >= t || h <= n))) print }'; }
 
 scripts/status.sh 0 2>/dev/null | cut -c1-220
 echo
