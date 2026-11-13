@@ -678,36 +678,24 @@ def seal_base(g, facts):
     # Rebuild the whole shell (floor, walls, ceiling) around the rooms:
     # Baritone had tunnelled through it in a dozen places, and patching only
     # the holes the flood fill found never caught up.
-    holes = [c for c in base_shell(g, (x, y, z), bool(facts.get("farm_room")))]
-    for i, c in enumerate(holes):
-        if filler_count() == 0:
-            break
-        g.status = f"rebuilding the base walls ({len(holes) - i} holes)"
-        filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
-                                             and i != "dirt",
-                                             g.count(lambda j, i=i: j == i)))
-        g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
+    farm = bool(facts.get("farm_room"))
     for _ in range(3):
-        leaks = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
-        if not leaks:
-            g.pending_facts["base_open"] = 0
-            return True
-        if filler_count() < len(leaks):
-            g.log("not enough blocks to seal the base")
-            return False
-        g.status = f"sealing base ({len(leaks)} openings)"
-        g.goto(x, y, z, timeout=30, near=1)
-        for c in sorted(leaks, key=lambda c: c[1]):  # bottom up
+        holes = base_shell(g, (x, y, z), farm)
+        if not holes or filler_count() == 0:
+            break
+        for i, c in enumerate(holes):
+            if filler_count() == 0:
+                g.log("not enough blocks to seal the base")
+                break
+            g.status = f"rebuilding the base walls ({len(holes) - i} holes)"
             # (dirt last: the farm needs it)
             filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
                                                  and i != "dirt",
                                                  g.count(lambda j, i=i: j == i)))
             # Work from inside: walking round to a hole from outside took a
             # bot over the surface at nightfall, and a zombie got it.
-            west = x - 8 if facts.get("farm_room") else x - 2
-            stand = (min(max(c[0], west), x + 2), y, min(max(c[2], z - 2), z + 2))
-            g.place_against(filler, *c, stand=stand)
-        g.goto(x, y, z, timeout=30, near=1)
+            g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
+    # (With the shell whole, the flood fill only confirms it.)
     left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")
     g.pending_facts["base_open"] = len(left)
