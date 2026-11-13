@@ -61,6 +61,14 @@ def gather(g, facts, blocks, item, count, timeout=900):
         if not g.baritone.getMineProcess().isActive():
             g.b("mine " + names)
             g.sleep(4)
+            if not g.baritone.getMineProcess().isActive() and blocks == "stone":
+                # No stone Baritone can path to (anti-xray hides unexposed
+                # rock): just tunnel; every block dug is stone anyway.
+                g.status = "tunnelling for stone"
+                g.b("tunnel")
+                g.sleep(20)
+                g.b("stop")
+                continue
             if not g.baritone.getMineProcess().isActive():
                 # Nothing of that kind known nearby: wander and retry.
                 misses += 1

@@ -19,7 +19,6 @@ anticheat:
     enabled: true
     engine-mode: 2
     hidden-blocks:
-    - air
     - copper_ore
     - deepslate_copper_ore
     - raw_copper_block
