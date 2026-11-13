@@ -1131,6 +1131,8 @@ def build_farm_room(g, facts, plots=20):
     for c in soil:
         if g.block(*c) in ("dirt", "farmland") or not has("dirt"):
             continue
+        if g.block(*c) in ("torch", "wall_torch"):
+            g.break_block(*c, timeout=4)  # left by an earlier attempt
         # stand on the door side of the cell, never in it
         # two blocks back: from right next to it, Baritone parked the bot
         # half inside the cell and the block could not be placed
