@@ -393,7 +393,7 @@ class Game:
             if not self.select(lambda i: i == name):
                 return False
             if stand and attempt == 0:
-                self.goto(*stand, timeout=60)
+                self.goto(*stand, timeout=25)
             if math.dist(self.pos(), (x + .5, y, z + .5)) > 3.5:
                 self.goto_near(x, y, z, radius=2, timeout=30)
             m.player_look_at(x + 0.5, y - 0.01, z + 0.5)
