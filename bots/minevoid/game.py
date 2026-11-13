@@ -218,9 +218,26 @@ class Game:
             self.b("stop")
             self.b("set allowBreak true")
 
+    def walk_only(self, x, y, z):
+        """Inside the base, Baritone may not dig: it tunnelled through the
+        walls to reach spots in the room and the base never stayed sealed.
+        Returns whether breaking was turned off (turn it back on after)."""
+        if self.inside_base(self.pos()) and self.inside_base((x + .5, y, z + .5)):
+            self.b("set allowBreak false")
+            return True
+        return False
+
     def goto(self, x, y, z, timeout=120, near=0):
         """Walk (digging/bridging as needed) to a block. True on arrival."""
         self.via_door(x, y, z)
+        nobreak = self.walk_only(x, y, z)
+        try:
+            return self._goto(x, y, z, timeout, near)
+        finally:
+            if nobreak:
+                self.b("set allowBreak true")
+
+    def _goto(self, x, y, z, timeout, near):
         self.b(f"goto {x} {y} {z}")
         self.sleep(1)
 
@@ -235,6 +252,14 @@ class Game:
     def goto_near(self, x, y, z, radius=2, timeout=60):
         """Path to within `radius` blocks of a position."""
         self.via_door(x, y, z)
+        nobreak = self.walk_only(x, y, z)
+        try:
+            return self._goto_near(x, y, z, radius, timeout)
+        finally:
+            if nobreak:
+                self.b("set allowBreak true")
+
+    def _goto_near(self, x, y, z, radius, timeout):
         goal = JavaClass("baritone.api.pathing.goals.GoalNear")(
             JavaClass("net.minecraft.core.BlockPos")(x, y, z), radius)
         self.baritone.getCustomGoalProcess().setGoalAndPath(goal)
