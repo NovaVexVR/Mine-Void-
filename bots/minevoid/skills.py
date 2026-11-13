@@ -600,8 +600,11 @@ def base_shell(g, base, farm_room=False):
     ceiling), skipping the door. Nearest-to-the-floor first."""
     x, y, z = base
     inside = base_interior(base, farm_room)
+    # face neighbours only: nothing gets through a diagonal gap, and edge
+    # cells cannot be reached from inside anyway
     shell = {(cx + dx, cy + dy, cz + dz) for cx, cy, cz in inside
-             for dx in (-1, 0, 1) for dy in (-1, 0, 1) for dz in (-1, 0, 1)} - inside
+             for dx, dy, dz in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0),
+                                (0, 0, 1), (0, 0, -1))} - inside
     shell = sorted(shell, key=lambda c: (c[1], c[0], c[2]))
     kinds = m.getblocklist([list(c) for c in shell])
     if any(k is None or "void_air" in k for k in kinds):
