@@ -854,9 +854,11 @@ def build_farm(g, facts, plots=8):
     Harvest later with Baritone's `farm` process."""
     seeds = lambda i: i == "wheat_seeds"
     if g.count(lambda i: i.endswith("_hoe")) < 1 and not crafting.craft(g, "stone_hoe"):
+        g.log("farm: could not make a hoe")
         return False
     if g.count(seeds) < plots and not gather(g, facts, "grass", "wheat_seeds", plots, 420):
         if g.count(seeds) < 2:
+            g.log(f"farm: only {g.count(seeds)} seeds after searching grass")
             return False
     spots = []
     home = facts.get("base") or m.world_info().spawn
@@ -870,6 +872,10 @@ def build_farm(g, facts, plots=8):
         g.b("explore")
         g.sleep(25)
         g.stop()
+    if len(spots) < 2:
+        g.log("farm: no tillable ground next to water found")
+        return False
+    g.log(f"farm: {len(spots)} candidate plots near water at {spots[0]}")
     planted = []
     for x, y, z in spots:
         if len(planted) >= plots or g.count(seeds) == 0:

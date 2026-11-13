@@ -29,6 +29,10 @@
    {"id": "seal_base", "at_base": true, "scope": "team", "slots": 1, "skill": "seal_base", "needs_fact": "base", "while_fact": "base_open", "preempt": true, "requires": {"cobblestone": 8}, "repeat": true, "args": {}, "note": "close holes in the base walls as soon as they are spotted"},
    {"id": "light_base", "at_base": true, "scope": "team", "slots": 1, "skill": "light_base", "needs_fact": "base", "preempt": true, "requires_any": [{"torch": 2}, {"coal": 1}], "args": {}, "fact": "base_lit", "note": "torches stop mobs spawning inside the base"}
   ]},
+  {"id": "farm", "title": "Wheat farm", "tasks": [
+   {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"},
+   {"id": "harvest", "scope": "team", "slots": 1, "skill": "harvest", "surface": true, "needs_fact": "farm", "cooldown": 1200, "args": {}, "note": "harvest + replant with Baritone, bake bread"}
+  ]},
   {"id": "beds", "title": "Beds", "tasks": [
    {"id": "bed", "scope": "each", "skill": "bed", "surface": true, "needs_fact": "base", "args": {}, "note": "go and find sheep for wool if nobody has a bed yet"}
   ]},
@@ -39,10 +43,6 @@
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "storage_has": {"raw_iron": 8}, "repeat": true, "args": {}},
    {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "gather", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
-  ]},
-  {"id": "farm", "title": "Wheat farm", "tasks": [
-   {"id": "wheat_farm", "scope": "team", "slots": 1, "skill": "build_farm", "surface": true, "args": {"plots": 8}, "fact": "farm"},
-   {"id": "harvest", "scope": "team", "slots": 1, "skill": "harvest", "surface": true, "needs_fact": "farm", "cooldown": 1200, "args": {}, "note": "harvest + replant with Baritone, bake bread"}
   ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
    {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
