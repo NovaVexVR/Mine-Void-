@@ -51,8 +51,16 @@ class Agent:
             try:
                 n = len(skills.base_openings(g, base,
                                              bool(self.facts.get("farm_room"))))
-                if n != self.facts.get("base_open"):
-                    g.pending_facts["base_open"] = n
+                if n and not getattr(self, "open_seen", False):
+                    # Confirm a hole a few seconds later before calling the
+                    # team: brief ones (mid-dig, a block being placed) kept
+                    # pulling the farm builder off to "seal" nothing.
+                    self.open_seen = True
+                    self.last_open_check = time.time() - 24
+                else:
+                    self.open_seen = False
+                    if n != self.facts.get("base_open"):
+                        g.pending_facts["base_open"] = n
             except Exception:
                 pass
         pending, g.pending_facts = getattr(g, "pending_facts", {}), {}
