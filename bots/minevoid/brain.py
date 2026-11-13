@@ -100,8 +100,10 @@ class Agent:
                               max_distance=128, limit=12)
         except Exception:
             return []
+        # Surface animals only: hunters chased cave animals underground and
+        # met zombies and skeletons there.
         return [[e.type.rsplit(".", 1)[-1]] + [round(v) for v in e.position]
-                for e in seen]
+                for e in seen if e.position[1] > 55]
 
     # -- background duties, called from every g.sleep() --------------------
     def tick(self):

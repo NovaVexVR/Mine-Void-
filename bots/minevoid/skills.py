@@ -186,8 +186,9 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
             return True  # an emergency meal is eaten as caught: stop once full
         come_home(g, facts, leash=2 * LEASH)
         g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
-        prey = m.entities(type=f".*\\.({animals})$", max_distance=60,
-                          sort="nearest", limit=1)
+        prey = [e for e in m.entities(type=f".*\\.({animals})$", max_distance=60,
+                                      sort="nearest", limit=4)
+                if e.position[1] > 55 or e.position[1] > g.pos()[1] - 4][:1]
         if not prey:
             misses += 1
             if misses > 20:
@@ -198,6 +199,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
             home = facts.get("base") or g.pos()
             spots = [a for a in facts.get("_animals", [])
                      if a[0] in kinds and math.dist(a[1:], home) < 2 * LEASH
+                     and a[2] > 55
                      and tuple(a[1:]) not in visited]
             if spots:
                 a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
