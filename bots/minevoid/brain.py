@@ -157,6 +157,9 @@ class Agent:
             if self.interruptible and task and self.task and not special:
                 if task["id"] != self.assigned:
                     raise game.TaskChanged(task["id"])
+                if g.is_dusk() and "base" in self.facts \
+                        and math.dist(g.pos(), self.facts["base"]) > 60:
+                    raise game.TaskChanged("dusk")
                 if g.is_night() and (self.task.get("surface")
                                      or ("base" in self.facts
                                          and not self.task.get("at_base"))):
@@ -225,6 +228,11 @@ class Agent:
 
         if task["skill"] in ("recover", "dig_in"):
             pass
+        elif g.is_dusk() and "base" in self.facts \
+                and math.dist(g.pos(), self.facts["base"]) > 60:
+            # Get home before dark: out in the open at night is where most
+            # deaths (and lost loot) happened.
+            task = {"id": "shelter", "skill": "shelter", "args": {}}
         elif g.is_night() and (task.get("surface") or unarmed
                                or ("base" in self.facts and not task.get("at_base"))):
             # With a base, the whole team goes home to sleep: mining at

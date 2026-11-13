@@ -127,6 +127,10 @@ class Game:
     def hunger(self):
         return self.mc.player.getFoodData().getFoodLevel()
 
+    def is_dusk(self):
+        """The last in-game hour or so before night: time to head home."""
+        return 11000 <= m.world_info().day_ticks % 24000 < 12800
+
     def is_night(self):
         return 12800 < m.world_info().day_ticks % 24000 < 23200
 

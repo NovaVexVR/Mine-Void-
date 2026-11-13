@@ -292,8 +292,10 @@ def shelter(g, facts):
     3-deep hole and seal it."""
     g.status = "sheltering for the night"
     base = facts.get("base")
-    if base and math.dist(g.pos(), base) < LEASH \
-            and g.goto(*base, timeout=180, near=2):
+    # At dusk there is time to come home from further out.
+    reach = 2 * LEASH if g.is_dusk() else LEASH
+    if base and math.dist(g.pos(), base) < reach \
+            and g.goto(*base, timeout=300, near=2):
         seal_base(g, facts)
         if any(short(st.item) in VALUABLES for st in m.player_inventory()):
             result = store(g, facts)
