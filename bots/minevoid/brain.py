@@ -49,7 +49,8 @@ class Agent:
             # Watch the base walls: holes dug by bots let mobs in.
             self.last_open_check = time.time()
             try:
-                n = len(skills.base_openings(g, base))
+                n = len(skills.base_openings(g, base,
+                                             bool(self.facts.get("farm_room"))))
                 if n != self.facts.get("base_open"):
                     g.pending_facts["base_open"] = n
             except Exception:

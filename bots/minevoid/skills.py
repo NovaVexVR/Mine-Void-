@@ -525,12 +525,14 @@ FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
            "granite", "tuff", "netherrack")
 
 
-def base_openings(g, base):
+def base_openings(g, base, farm_room=False):
     """Air cells of the base's enclosure that connect to the outside: flood
     fill the air from the room centre inside a box one block larger than
     the room (plus head room), and report cells with air beyond the box."""
     x, y, z = base
     lo, hi = (x - 3, y - 2, z - 3), (x + 3, y + 4, z + 3)  # closed floor pits are fine
+    if farm_room:  # the farm room (and its doorway) west of the base
+        lo = (x - 9, y - 2, z - 3)
     # (get_block_region returns empty entries away from the player;
     # getblocklist reads the same positions reliably in one call.)
     cells = [(cx, cy, cz) for cx in range(lo[0] - 1, hi[0] + 2)
@@ -562,7 +564,7 @@ def seal_base(g, facts):
     x, y, z = facts["base"]
     filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
     for _ in range(3):
-        leaks = base_openings(g, (x, y, z))
+        leaks = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
         if not leaks:
             g.pending_facts["base_open"] = 0
             return True
@@ -572,10 +574,13 @@ def seal_base(g, facts):
         g.status = f"sealing base ({len(leaks)} openings)"
         g.goto(x, y, z, timeout=30, near=1)
         for c in sorted(leaks, key=lambda c: c[1]):  # bottom up
-            filler = max(FILLERS, key=lambda i: g.count(lambda j, i=i: j == i))
+            # (dirt last: the farm needs it)
+            filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
+                                                 and i != "dirt",
+                                                 g.count(lambda j, i=i: j == i)))
             g.place_against(filler, *c)
         g.goto(x, y, z, timeout=30, near=1)
-    left = base_openings(g, (x, y, z))
+    left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")
     g.pending_facts["base_open"] = len(left)
     return not left
@@ -849,6 +854,209 @@ def farm_spots(g, radius=20):
                   key=lambda c: math.dist(c, anchor))
 
 
+def get_bucket(g, facts):
+    """A bucket from our own iron, or from the base chest (smelting stored
+    raw iron if need be)."""
+    has = lambda i: g.count(lambda j: j == i)
+    if has("bucket") or has("water_bucket"):
+        return True
+    if has("iron_ingot") < 3 and "base" in facts:
+        withdraw(g, facts, "iron_ingot", 3)
+        if has("iron_ingot") < 3:
+            withdraw(g, facts, "raw_iron", 3 - has("iron_ingot"))
+        if has("iron_ingot") < 3 and has("raw_iron"):
+            smelt(g, facts, "raw_iron", "iron_ingot",
+                  min(has("raw_iron"), 3 - has("iron_ingot")))
+    if has("iron_ingot") < 3:
+        g.log(f"bucket: only {has('iron_ingot')} iron ingots available")
+        return False
+    return crafting.craft(g, "bucket")
+
+
+def fetch_water(g, facts):
+    """Make a bucket, fill it at the nearest water and bring it home: a
+    water source next to the base door hydrates a farm there (the nearest
+    natural water is far away and full of Drowned)."""
+    if not fill_bucket(g, facts):
+        return False
+    return pour_by_door(g, facts)
+
+
+def fill_bucket(g, facts):
+    """Make a bucket if needed and fill it at the nearest water."""
+    if not get_bucket(g, facts):
+        return False
+    has = lambda i: g.count(lambda j: j == i)
+    if not has("water_bucket"):
+        g.status = "fetching water"
+        come_home(g, facts, leash=LEASH // 2)
+        g.b("goto water")
+        g.sleep(2)
+        g.wait(lambda: not g.busy(), 240, 1)
+        g.stop()
+        water = None
+        for _ in range(6):
+            # A source block: still water (level 0), open to the air.
+            here = g.block_pos()
+            cells = [[x, y, z] for x in range(here[0] - 4, here[0] + 5)
+                     for y in range(here[1] - 3, here[1] + 2)
+                     for z in range(here[2] - 4, here[2] + 5)]
+            for c, k in zip(cells, m.getblocklist(cells)):
+                if k and k.startswith("minecraft:water[level=0") and \
+                        g.block(c[0], c[1] + 1, c[2]) == "air":
+                    if water is None or math.dist(c, here) < math.dist(water, here):
+                        water = c
+            if water:
+                break
+            g.b("goto water")
+            g.sleep(2)
+            g.wait(lambda: not g.busy(), 60, 1)
+            g.stop()
+        if not water:
+            g.log("water: no source block found")
+            return False
+        g.select(lambda i: i == "bucket")
+        g.goto_near(*water, radius=2, timeout=30)
+        g.select(lambda i: i == "bucket")
+        g.use_on(water[0] + 0.5, water[1] + 0.9, water[2] + 0.5, hold=0.2)
+        if not has("water_bucket"):
+            g.log("water: could not fill the bucket")
+            return False
+        g.log(f"water: filled the bucket at {water}")
+    return True
+
+
+def pour_by_door(g, facts):
+    """Surface variant: dig a hole by the base door and pour the water in."""
+    ex = facts.get("base_exit") or facts["base"]
+    g.status = "bringing water home"
+    g.goto_near(*ex, radius=2, timeout=300)
+    spots = dry_farm_spots(g, ex, radius=5)
+    for x, y, z in spots[4:]:  # leave the cells right at the door free
+        if math.dist((x, y, z), ex) < 3:
+            continue
+        g.goto_near(x, y, z, radius=2, timeout=30)
+        if not g.break_block(x, y, z, timeout=8):
+            continue
+        g.select(lambda i: i == "water_bucket")
+        g.use_on(x + 0.5, y, z + 0.5, hold=0.2)  # click the hole's floor
+        if g.block(x, y, z) == "water":
+            g.log(f"water: placed a source by the base at {[x, y, z]}")
+            return {"farm_water": [x, y, z]}
+    g.log("water: could not place the water by the base")
+    return False
+
+
+def farm_room_cells(base):
+    """Layout of the farm room west of the base room: (centre, corner
+    cells for torches, soil cells). Soil sits one block above the base
+    floor with the water in the centre cell, level with the soil."""
+    x, y, z = base
+    cx = x - 6
+    corners = [(cx + dx, y, z + dz) for dx in (-2, 2) for dz in (-2, 2)]
+    soil = [(cx + dx, y, z + dz) for dx in range(-2, 3) for dz in range(-2, 3)
+            if (dx, dz) != (0, 0) and (abs(dx), abs(dz)) != (2, 2)]
+    # far side first, so the bot works its way back towards the doorway
+    soil.sort(key=lambda c: (c[0], abs(c[2] - z)))
+    return (cx, y, z), corners, soil
+
+
+def build_farm_room(g, facts, plots=20):
+    """An underground wheat farm inside the base: a 5x5 room off the west
+    wall, soil carried in (the base is solid stone), torches in the
+    corners (crops need light), and a bucket of water in the middle so
+    every plot is hydrated. Safe from mobs, and nobody has to work next to
+    the Drowned-infested water outside."""
+    x, y, z = facts["base"]
+    centre, corners, soil = farm_room_cells((x, y, z))
+    has = lambda i: g.count(lambda j: j == i)
+    seeds = lambda i: i == "wheat_seeds"
+    # -- materials (surface errands; the skill resumes after a night) ------
+    if not has("stone_hoe") and not g.count(lambda i: i.endswith("_hoe")) \
+            and not crafting.craft(g, "stone_hoe"):
+        g.log("farm room: could not make a hoe")
+        return False
+    todo_soil = [c for c in soil if g.block(*c) not in ("dirt", "farmland")] \
+        if math.dist(g.pos(), (x, y, z)) < 40 else soil
+    if has("dirt") < len(todo_soil) and \
+            not gather(g, facts, "dirt", "dirt", len(todo_soil), timeout=420):
+        g.log(f"farm room: only {has('dirt')} dirt")
+        return False
+    if g.count(seeds) < 8 and not gather(g, facts, "grass", "wheat_seeds", 8, 420) \
+            and g.count(seeds) < 2:
+        g.log(f"farm room: only {g.count(seeds)} seeds")
+        return False
+    if has("torch") < 2:
+        if not g.count(CLASSES["coal"]):
+            gather(g, facts, "coal", "coal|charcoal", 1, timeout=420)
+        if not g.count(CLASSES["coal"]) or not crafting.craft(g, "torch"):
+            g.log("farm room: no torches (crops need light)")
+            return False
+    if g.block(*centre) != "water" and not fill_bucket(g, facts):
+        return False
+    # -- dig ---------------------------------------------------------------
+    g.status = "digging the farm room"
+    if not g.goto(x, y, z, timeout=300, near=1):
+        return False
+    g.b("sel clear")
+    g.b(f"sel 1 {x - 8} {y} {z - 2}")
+    g.b(f"sel 2 {x - 4} {y + 3} {z + 2}")
+    g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
+    g.b(f"sel 2 {x - 3} {y + 2} {z}")
+    g.b("sel cleararea")
+    g.sleep(3)
+    g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 600, 2)
+    g.b("sel clear")
+    g.stop()
+    g.pending_facts["farm_room"] = True  # the sealing check now covers it
+    # -- light, soil, water --------------------------------------------------
+    g.status = "building the farm"
+    for c in corners:
+        if has("torch") and g.block(*c) in AIR:
+            g.place_at("torch", *c)
+    for c in soil:
+        if g.block(*c) in ("dirt", "farmland") or not has("dirt"):
+            continue
+        # stand on the door side of the cell, never in it
+        g.place_at("dirt", *c, stand=(min(c[0] + 1, x - 3), y, c[2] if c[0] + 1 < x - 3 else z))
+    if g.block(*centre) != "water":
+        ring = [(centre[0] + dx, y, centre[2] + dz)
+                for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+        if not all(g.block(*c) in ("dirt", "farmland") for c in ring):
+            g.log("farm room: soil around the water cell is incomplete")
+            return False
+        g.goto_near(*centre, radius=2, timeout=30)
+        g.select(lambda i: i == "water_bucket")
+        g.use_on(centre[0] + 0.5, y - 0.01, centre[2] + 0.5, hold=0.2)
+        if g.block(*centre) != "water":
+            g.log("farm room: could not pour the water")
+            return False
+    # -- till and plant ------------------------------------------------------
+    planted = 0
+    for c in soil:
+        if g.block(c[0], y + 1, c[2]) == "wheat":
+            planted += 1
+            continue
+        if g.block(*c) not in ("dirt", "farmland") or not g.count(seeds):
+            continue
+        g.status = f"planting {planted}/{len(soil)}"
+        if math.dist(g.pos(), (c[0] + .5, y + 1, c[2] + .5)) > 3.5:
+            g.goto_near(c[0], y + 1, c[2], radius=2, timeout=30)
+        if g.block(*c) == "dirt":
+            g.select(lambda i: i.endswith("_hoe"))
+            g.use_on(c[0] + 0.5, y + 0.99, c[2] + 0.5)
+        if g.block(*c) != "farmland":
+            continue
+        g.select(seeds)
+        g.use_on(c[0] + 0.5, y + 0.93, c[2] + 0.5)
+        if g.block(c[0], y + 1, c[2]) == "wheat":
+            planted += 1
+    g.log(f"farm room: {planted} plots planted around water at {list(centre)}")
+    if planted < 2:
+        return False
+    return {"farm": list(centre), "farm_plots": planted, "farm_room": True}
+
+
 def dry_farm_spots(g, center, radius=7):
     """Grass/dirt blocks with open air above near `center` (surface level)."""
     cx, cy, cz = center
@@ -875,7 +1083,11 @@ def build_farm(g, facts, plots=8):
             return False
     spots = []
     home = facts.get("base") or m.world_info().spawn
-    for attempt in range(3):
+    if facts.get("farm_water"):
+        # Our own water source by the base: farm around it.
+        g.goto_near(*facts["farm_water"], radius=2, timeout=200)
+        spots = farm_spots(g, radius=8)
+    for attempt in range(0 if len(spots) >= 2 else 3):
         # Close to home: the farm has to be tended (and defended) for good.
         come_home(g, facts, leash=LEASH // 2)
         g.status = "looking for water"
@@ -999,5 +1211,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "light_base": light_base, "bed": bed, "fish": fish,
           "seal_base": seal_base, "build_exit": build_exit,
           "store": store, "craft_from_storage": craft_from_storage,
-          "smelt_storage": smelt_storage,
+          "smelt_storage": smelt_storage, "fetch_water": fetch_water,
+          "build_farm_room": build_farm_room,
           "harvest": harvest}

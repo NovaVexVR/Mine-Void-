@@ -21,6 +21,7 @@ BLOCK_GROUPS = {
     "iron": "iron_ore deepslate_iron_ore coal_ore deepslate_coal_ore",
     "coal": "coal_ore deepslate_coal_ore",
     "grass": "short_grass tall_grass",
+    "dirt": "dirt grass_block",
 }
 BARITONE_SETTINGS = {
     # Play like a legit player: the server runs GrimAC and anti-xray, so do
@@ -38,7 +39,7 @@ BARITONE_SETTINGS = {
     # new tunnels: every tunnel out of the base is a way in for mobs.
     "blockBreakAdditionalPenalty": "6",
     # Never mine base fixtures while pathing (Baritone broke the beds).
-    "blocksToDisallowBreaking": "crafting_table,furnace,chest,torch,wall_torch,white_bed,orange_bed,magenta_bed,light_blue_bed,yellow_bed,lime_bed,pink_bed,gray_bed,light_gray_bed,cyan_bed,purple_bed,blue_bed,brown_bed,green_bed,red_bed,black_bed,oak_door,spruce_door,birch_door,jungle_door,acacia_door,dark_oak_door,mangrove_door,cherry_door,pale_oak_door",
+    "blocksToDisallowBreaking": "crafting_table,furnace,chest,torch,wall_torch,farmland,wheat,white_bed,orange_bed,magenta_bed,light_blue_bed,yellow_bed,lime_bed,pink_bed,gray_bed,light_gray_bed,cyan_bed,purple_bed,blue_bed,brown_bed,green_bed,red_bed,black_bed,oak_door,spruce_door,birch_door,jungle_door,acacia_door,dark_oak_door,mangrove_door,cherry_door,pale_oak_door",
     "allowBreak": "true",
     "allowPlace": "true",
     "rightClickContainerOnArrival": "true",
