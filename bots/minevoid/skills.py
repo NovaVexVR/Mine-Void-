@@ -11,6 +11,7 @@ import time
 import minescript as m
 
 from . import craft as crafting
+from . import game
 from .game import BLOCK_GROUPS, short
 from .items import CLASSES, matcher
 
@@ -864,10 +865,17 @@ def harvest(g, facts, radius=12):
     g.goto_near(*farm, radius=2, timeout=180)
     if g.count(lambda i: i == "wheat_seeds") == 0:
         g.log("harvest: no seeds to replant with, keeping the first ones")
-    g.b(f"farm {radius}")
-    g.sleep(3)
-    g.wait(lambda: not g.baritone.getFarmProcess().isActive(), 240, 2)
-    g.stop()
+    # Wheat is on the never-break list (Baritone trampled through crops on
+    # its way past); lift that while harvesting, keep farmland protected.
+    guard = game.BARITONE_SETTINGS["blocksToDisallowBreaking"]
+    g.b("set blocksToDisallowBreaking " + guard.replace(",wheat", ""))
+    try:
+        g.b(f"farm {radius}")
+        g.sleep(3)
+        g.wait(lambda: not g.baritone.getFarmProcess().isActive(), 240, 2)
+    finally:
+        g.stop()
+        g.b("set blocksToDisallowBreaking " + guard)
     wheat = g.count(lambda i: i == "wheat")
     if wheat >= 3:
         crafting.craft(g, "bread", wheat // 3)
