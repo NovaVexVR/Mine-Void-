@@ -324,7 +324,16 @@ def shelter(g, facts):
                     and not g.hostiles(8):
                 last_try = time.time()
                 g.status = "going to sleep"
-                g.use_on(bed[0] + 0.5, bed[1] + 0.4, bed[2] + 0.5)
+                g.stop()  # Baritone must not be steering the camera
+                if math.dist(g.pos(), (bed[0] + .5, bed[1], bed[2] + .5)) > 3:
+                    g.goto_near(*bed, radius=1, timeout=20)
+                if g.aim(bed):  # crosshair really on the bed
+                    m.player_press_use(True)
+                    time.sleep(0.3)
+                    m.player_press_use(False)
+                    time.sleep(1)
+                g.log(f"sleep attempt: sleeping={g.sleeping()} "
+                      f"time={m.world_info().day_ticks % 24000}")
             return not g.is_night() and not g.is_dusk()
         g.wait(morning, 900, 2)
     else:
