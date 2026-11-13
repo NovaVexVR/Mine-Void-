@@ -304,6 +304,16 @@ class Coordinator:
                      if t["id"] == task["id"]), None)
         if plan is None or self.satisfied(plan, name, inv):
             return None
+        # A bot that lost its basic gear (it died) starts over from the
+        # earlier phases: a respawned bot kept "mining iron" with bare hands
+        # and was killed again and again underground.
+        for p in self.goal["phases"]:
+            if p.get("id") == task.get("phase"):
+                break
+            for t in p["tasks"]:
+                if t["scope"] == "each" and ("have" in t or "skip_if_have" in t) \
+                        and not self.satisfied(t, name, inv):
+                    return None
         if plan["scope"] == "team":
             others = sorted(h for h in self.holders(plan["id"], time.time())
                             if h != name)
