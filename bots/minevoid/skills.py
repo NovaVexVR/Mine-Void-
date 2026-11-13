@@ -887,6 +887,24 @@ def fetch_water(g, facts):
     return pour_by_door(g, facts)
 
 
+def scan_for_water(g, radius=96, step=4):
+    """Nearest surface-level water in the loaded chunks, or None."""
+    x0, y0, z0 = g.block_pos()
+    cells = [[x, y, z] for x in range(x0 - radius, x0 + radius + 1, step)
+             for z in range(z0 - radius, z0 + radius + 1, step)
+             for y in range(58, 80)]
+    best = None
+    for i in range(0, len(cells), 2000):
+        chunk = cells[i:i + 2000]
+        for c, k in zip(chunk, m.getblocklist(chunk)):
+            if k and k.startswith("minecraft:water"):
+                d = math.dist(c, (x0, y0, z0))
+                if (best is None or d < best[0]) and \
+                        g.block(c[0], c[1] + 1, c[2]) in AIR:
+                    best = (d, c)
+    return best and best[1]
+
+
 def fill_bucket(g, facts):
     """Make a bucket if needed and fill it at the nearest water."""
     if not get_bucket(g, facts):
@@ -895,9 +913,17 @@ def fill_bucket(g, facts):
     if not has("water_bucket"):
         g.status = "fetching water"
         come_home(g, facts, leash=LEASH // 2)
-        g.b("goto water")
-        g.sleep(2)
-        g.wait(lambda: not g.busy(), 240, 1)
+        # Baritone's "goto water" only knows blocks in its cache and gave up
+        # with water 56 blocks away, so look for it ourselves (a sparse scan
+        # of the loaded chunks takes ~3 s) and remember it for the team.
+        spot = facts.get("water") or scan_for_water(g)
+        if spot:
+            g.pending_facts["water"] = spot
+            g.goto_near(*spot, radius=3, timeout=240)
+        else:
+            g.b("goto water")
+            g.sleep(2)
+            g.wait(lambda: not g.busy(), 240, 1)
         g.stop()
         water = None
         for _ in range(6):
