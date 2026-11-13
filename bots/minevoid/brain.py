@@ -43,6 +43,17 @@ class Agent:
         lost, g.lost = getattr(g, "lost", []), []
         if lost:
             extra["undone"] = lost
+        base = self.facts.get("base")
+        if base and math.dist(g.pos(), base) < 12 \
+                and time.time() - getattr(self, "last_open_check", 0) > 30:
+            # Watch the base walls: holes dug by bots let mobs in.
+            self.last_open_check = time.time()
+            try:
+                n = len(skills.base_openings(g, base))
+                if n != self.facts.get("base_open"):
+                    g.pending_facts["base_open"] = n
+            except Exception:
+                pass
         pending, g.pending_facts = getattr(g, "pending_facts", {}), {}
         if pending:
             extra["facts"] = dict(extra.get("facts") or {}, **pending)

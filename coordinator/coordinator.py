@@ -173,6 +173,8 @@ class Coordinator:
             return True  # not possible yet
         if "storage_has" in task and not has_all(self.storage(), task["storage_has"]):
             return True
+        if "while_fact" in task and not self.facts.get(task["while_fact"]):
+            return True  # only while the fact is truthy (e.g. base_open > 0)
         if "requires_any" in task and \
                 not any(has_all(inv, alt) for alt in task["requires_any"]):
             return True

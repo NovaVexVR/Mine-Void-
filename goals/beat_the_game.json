@@ -26,6 +26,7 @@
   {"id": "base", "title": "Underground base", "tasks": [
    {"id": "dig_base", "scope": "team", "slots": 1, "skill": "build_base", "args": {"depth": 8, "size": 5}, "fact": "base"},
    {"id": "base_exit", "at_base": true, "scope": "team", "slots": 1, "skill": "build_exit", "needs_fact": "base", "preempt": true, "args": {}, "fact": "base_exit", "note": "stairs + door: a way in and out that needs no block placing and keeps mobs out"},
+   {"id": "seal_base", "at_base": true, "scope": "team", "slots": 1, "skill": "seal_base", "needs_fact": "base", "while_fact": "base_open", "preempt": true, "requires": {"cobblestone": 8}, "repeat": true, "args": {}, "note": "close holes in the base walls as soon as they are spotted"},
    {"id": "light_base", "at_base": true, "scope": "team", "slots": 1, "skill": "light_base", "needs_fact": "base", "preempt": true, "requires_any": [{"torch": 2}, {"coal": 1}], "args": {}, "fact": "base_lit", "note": "torches stop mobs spawning inside the base"}
   ]},
   {"id": "beds", "title": "Beds", "tasks": [

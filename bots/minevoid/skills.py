@@ -558,6 +558,7 @@ def seal_base(g, facts):
     for _ in range(3):
         leaks = base_openings(g, (x, y, z))
         if not leaks:
+            g.pending_facts["base_open"] = 0
             return True
         if filler_count() < len(leaks):
             g.log("not enough blocks to seal the base")
@@ -570,6 +571,7 @@ def seal_base(g, facts):
         g.goto(x, y, z, timeout=30, near=1)
     left = base_openings(g, (x, y, z))
     g.log(f"base sealing: {len(left)} openings left")
+    g.pending_facts["base_open"] = len(left)
     return not left
 
 
