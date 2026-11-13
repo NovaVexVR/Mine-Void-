@@ -30,6 +30,7 @@
    {"id": "light_base", "at_base": true, "scope": "team", "slots": 1, "skill": "light_base", "needs_fact": "base", "preempt": true, "requires_any": [{"torch": 2}, {"coal": 1}], "args": {}, "fact": "base_lit", "note": "torches stop mobs spawning inside the base"}
   ]},
   {"id": "farm", "title": "Farm room in the base", "tasks": [
+   {"id": "farm_room_carrier", "scope": "team", "slots": 1, "skill": "build_farm_room", "needs_fact": "base", "preempt": true, "requires": {"bucket|water_bucket": 1, "dirt": 16}, "args": {}, "fact": "farm", "note": "the bot already carrying the bucket and soil finishes the farm before anything else"},
    {"id": "farm_room", "scope": "team", "slots": 1, "skill": "build_farm_room", "needs_fact": "base", "needs_iron": 3, "args": {}, "fact": "farm", "note": "5x5 room off the base: carried-in soil, corner torches, a bucket of water in the middle, wheat"},
    {"id": "harvest", "at_base": true, "scope": "team", "slots": 1, "skill": "harvest", "needs_fact": "farm", "cooldown": 1200, "args": {}, "note": "harvest + replant with Baritone, bake bread"}
   ]},
