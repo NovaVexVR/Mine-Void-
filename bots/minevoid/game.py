@@ -140,7 +140,7 @@ class Game:
         earlier for a bot far out (about 1.7 blocks a second with detours,
         plus a margin)."""
         t = m.world_info().day_ticks % 24000
-        return t < 12800 and 12800 - t < dist * 12 + 1800
+        return t < 12800 and 12800 - t < dist * 12 + 1200
 
     def is_night(self):
         return 12800 < m.world_info().day_ticks % 24000 < 23200

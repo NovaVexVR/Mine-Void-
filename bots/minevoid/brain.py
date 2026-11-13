@@ -253,7 +253,7 @@ class Agent:
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
         elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
-            task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3},
+            task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3, "fed": 16},
                     "surface": True}
         self.task = task
         g.status = task["id"]

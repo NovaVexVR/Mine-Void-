@@ -142,13 +142,15 @@ def craft(g, facts, item, count=1):
     return ok
 
 
-def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
+def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None):
     """Kill animals until `count` items matching `item` are held. Animals
     near home get used up (they do not respawn), so hunters range twice
     as far as other workers."""
     food = matcher(item)
     end, misses, visited = time.time() + timeout, 0, set()
     while g.count(food) < count and time.time() < end:
+        if fed and g.hunger() >= fed:
+            return True  # an emergency meal is eaten as caught: stop once full
         come_home(g, facts, leash=2 * LEASH)
         g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
         prey = m.entities(type=f".*\\.({animals})$", max_distance=60,
