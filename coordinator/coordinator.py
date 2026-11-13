@@ -221,7 +221,10 @@ class Coordinator:
                         "args": {"frm": other}, "phase": "team"}
         if night:
             return None
-        handoff = self.kit_delivery(name, inv, team, dist)
+        # Kit material is shared through the base chest now (it survives
+        # deaths); walking it over by hand cost lives.
+        handoff = None if "storage" in self.facts else \
+            self.kit_delivery(name, inv, team, dist)
         if handoff and not [h for h in self.holders(handoff["id"], now)
                             if h != name]:
             return handoff
@@ -238,7 +241,8 @@ class Coordinator:
                 continue
             for other, b in sorted(team.items(), key=lambda kv: dist(kv[1])):
                 oinv = b.get("inventory", {})
-                if (other == name or dist(b) > 400 or b.get("health", 0) <= 0
+                if (other == name or dist(b) > rule.get("max_dist", 100)
+                        or b.get("health", 0) <= 0
                         or count(oinv, rule.get("need_spec", item)) >= rule["low"]
                         or ("max_food" in rule and b.get("food", 20) > rule["max_food"])
                         or ("to_not_done" in rule
