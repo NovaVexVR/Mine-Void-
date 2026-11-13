@@ -520,6 +520,22 @@ def fix_base(g, facts):
                 if not g.count(lambda j: j == filler):
                     break
                 g.place_against(filler, x + dx, py, z + dz)
+    # Baritone pillars and bridges with dirt/cobble and leaves it behind:
+    # the room filled up with scaffolding that blocked walking and beds.
+    clutter = [(x + dx, py, z + dz) for dx in range(-2, 3) for dz in range(-2, 3)
+               for py in (y, y + 1, y + 2)]
+    kinds = dict(zip(clutter, (short(k) for k in
+                               m.getblocklist([list(c) for c in clutter]))))
+    clutter = [c for c in clutter if kinds[c] in CLUTTER]
+    while clutter:
+        c = min(clutter, key=lambda c: math.dist(c, g.pos()))
+        clutter.remove(c)
+        g.status = f"clearing scaffolding from the base ({len(clutter)} left)"
+        if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
+            g.goto_near(c[0], y, c[2], radius=2, timeout=20)
+        g.stop()
+        g.select(lambda i: i.endswith("_pickaxe"))
+        g.break_block(*c, timeout=6)
     for item, dx in FURNITURE:
         if g.block(x + dx, y, z - 2) == item or g.find_block(item, 4):
             continue
@@ -529,6 +545,7 @@ def fix_base(g, facts):
 
 FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
            "granite", "tuff", "netherrack")
+CLUTTER = FILLERS + ("gravel", "sand", "stone", "deepslate", "grass_block")
 
 
 def base_openings(g, base, farm_room=False):
@@ -1032,6 +1049,10 @@ def build_farm_room(g, facts, plots=20):
     g.status = "digging the farm room"
     if not g.goto(x, y, z, timeout=300, near=1):
         return False
+    # Tell the team first: the half-dug doorway otherwise looks like a hole
+    # in the base, and the sealing job walled it up again.
+    g.pending_facts["farm_room"] = True
+    g.wait(lambda: facts.get("farm_room"), 15, 1)
     g.b("sel clear")
     g.b(f"sel 1 {x - 8} {y} {z - 2}")
     g.b(f"sel 2 {x - 4} {y + 3} {z + 2}")
@@ -1042,7 +1063,6 @@ def build_farm_room(g, facts, plots=20):
     g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 600, 2)
     g.b("sel clear")
     g.stop()
-    g.pending_facts["farm_room"] = True  # the sealing check now covers it
     # -- light, soil, water --------------------------------------------------
     g.status = "building the farm"
     for c in corners:
