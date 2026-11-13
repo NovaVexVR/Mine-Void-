@@ -1003,6 +1003,10 @@ def build_farm_room(g, facts, plots=20):
     has = lambda i: g.count(lambda j: j == i)
     seeds = lambda i: i == "wheat_seeds"
     # -- materials (surface errands; the skill resumes after a night) ------
+    short_of = (not g.count(lambda i: i.endswith("_hoe")) or has("dirt") < 16
+                or g.count(seeds) < 2 or (has("torch") < 2 and not g.count(CLASSES["coal"])))
+    if short_of and (g.is_night() or g.is_dusk()):
+        shelter(g, facts)  # the task is marked at_base: do not gather in the dark
     if not has("stone_hoe") and not g.count(lambda i: i.endswith("_hoe")) \
             and not crafting.craft(g, "stone_hoe"):
         g.log("farm room: could not make a hoe")
@@ -1023,8 +1027,6 @@ def build_farm_room(g, facts, plots=20):
         if not g.count(CLASSES["coal"]) or not crafting.craft(g, "torch"):
             g.log("farm room: no torches (crops need light)")
             return False
-    if g.block(*centre) != "water" and not fill_bucket(g, facts):
-        return False
     # -- dig ---------------------------------------------------------------
     g.status = "digging the farm room"
     if not g.goto(x, y, z, timeout=300, near=1):
@@ -1050,6 +1052,16 @@ def build_farm_room(g, facts, plots=20):
             continue
         # stand on the door side of the cell, never in it
         g.place_at("dirt", *c, stand=(min(c[0] + 1, x - 3), y, c[2] if c[0] + 1 < x - 3 else z))
+    if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
+        # The only surface errand left: wait for daylight in bed (all of
+        # the above is underground, so it gets done at night too).
+        if g.is_night() or g.head_home(max(LEASH // 2, math.dist(g.pos(), facts.get("water") or g.pos()))):
+            g.log("farm room: dug and soiled; fetching water in daylight")
+            shelter(g, facts)
+        if not fill_bucket(g, facts):
+            return False
+        if not g.goto(x, y, z, timeout=300, near=1):
+            return False
     if g.block(*centre) != "water":
         ring = [(centre[0] + dx, y, centre[2] + dz)
                 for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))]
