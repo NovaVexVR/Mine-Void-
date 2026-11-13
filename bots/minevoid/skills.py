@@ -72,7 +72,7 @@ def gather(g, facts, blocks, item, count, timeout=900):
         if blocks in ("iron", "coal", "stone"):
             last_torch = light_the_way(g, last_torch)
         base = facts.get("base")
-        if base and blocks != "logs" and math.dist(g.pos(), base) < 24:
+        if base and blocks not in ("logs", "grass") and math.dist(g.pos(), base) < 24:
             # Do not quarry the base itself (bots mined its roof away).
             g.status = "leaving the base to dig"
             g.b(f"goto {base[0] + 40} {base[2]}")
