@@ -135,6 +135,13 @@ class Game:
         """The last in-game hour or so before night: time to head home."""
         return 11000 <= m.world_info().day_ticks % 24000 < 12800
 
+    def head_home(self, dist):
+        """Time to start walking home, given how far away home is: dusk, or
+        earlier for a bot far out (about 1.7 blocks a second with detours,
+        plus a margin)."""
+        t = m.world_info().day_ticks % 24000
+        return t < 12800 and 12800 - t < dist * 12 + 1800
+
     def is_night(self):
         return 12800 < m.world_info().day_ticks % 24000 < 23200
 

@@ -331,7 +331,10 @@ def shelter(g, facts):
     g.status = "sheltering for the night"
     base = facts.get("base")
     # At dusk there is time to come home from further out.
-    reach = 2 * LEASH if g.is_dusk() else LEASH
+    # Before nightfall there is time to come home from far out; once it is
+    # dark, walking more than a short way home got bots killed by zombies on
+    # the way, so they dig in where they are instead.
+    reach = 2 * LEASH if not g.is_night() else 48
     if base and math.dist(g.pos(), base) < reach \
             and g.goto(*base, timeout=300, near=2):
         seal_base(g, facts)
