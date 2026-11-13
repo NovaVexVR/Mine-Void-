@@ -85,6 +85,12 @@ def gather(g, facts, blocks, item, count, timeout=900):
             if not g.baritone.getMineProcess().isActive() and blocks == "stone":
                 # No stone Baritone can path to (anti-xray hides unexposed
                 # rock): just tunnel; every block dug is stone anyway.
+                # Dig down first: near the surface a tunnel only finds dirt
+                # and gravel.
+                g.status = "digging down for stone"
+                x, y, z = g.block_pos()
+                if y > 50:
+                    g.goto(x, y - 10, z, timeout=60)
                 g.status = "tunnelling for stone"
                 g.b("tunnel")
                 g.sleep(20)
