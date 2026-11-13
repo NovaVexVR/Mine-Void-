@@ -18,7 +18,7 @@ BLOCK_GROUPS = {
     "logs": "oak_log birch_log spruce_log jungle_log acacia_log dark_oak_log "
             "cherry_log mangrove_log pale_oak_log",
     "stone": "stone cobblestone deepslate cobbled_deepslate",
-    "iron": "iron_ore deepslate_iron_ore",
+    "iron": "iron_ore deepslate_iron_ore coal_ore deepslate_coal_ore",
     "coal": "coal_ore deepslate_coal_ore",
     "grass": "short_grass tall_grass",
 }

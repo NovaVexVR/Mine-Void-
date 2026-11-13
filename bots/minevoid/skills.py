@@ -37,11 +37,30 @@ def come_home(g, facts, force=False, leash=LEASH):
     return True
 
 
+def light_the_way(g, last):
+    """Underground, drop a torch every ~10 blocks: caves full of mobs were
+    killing the miners, and lit tunnels stop new spawns. Returns where the
+    last torch went."""
+    here = g.block_pos()
+    if here[1] > 55 or (last and math.dist(here, last) < 10):
+        return last
+    if g.count(lambda i: i == "torch") == 0:
+        if g.count(CLASSES["coal"]) == 0 or not crafting.craft(g, "torch"):
+            return last
+    g.b("pause")
+    try:
+        pos = g.place_block("torch")
+    finally:
+        g.b("resume")
+    return pos or here
+
+
 def gather(g, facts, blocks, item, count, timeout=900):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
     end, misses = time.time() + timeout, 0
     last_progress, last_state, stuck = time.time(), None, 0
+    last_torch = None
     # Anti-xray scrambles hidden ores, so only chase ore we can actually
     # see; wood and stone are never faked and can use chunk data directly.
     g.b("set legitMine " + ("true" if blocks in ("iron", "coal") else "false"))
@@ -50,6 +69,8 @@ def gather(g, facts, blocks, item, count, timeout=900):
             g.stop()
             return False
         come_home(g, facts)
+        if blocks in ("iron", "coal", "stone"):
+            last_torch = light_the_way(g, last_torch)
         base = facts.get("base")
         if base and blocks != "logs" and math.dist(g.pos(), base) < 24:
             # Do not quarry the base itself (bots mined its roof away).
