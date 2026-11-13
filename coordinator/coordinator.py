@@ -272,7 +272,7 @@ class Coordinator:
             if task else False
         if not task or ended or failed \
                 or task.get("phase") in ("team", "fallback", None) \
-                or task.get("kit_mine") or task.get("kit_craft"):
+                or task.get("kit_craft"):
             return None
         urgent = self.teamwork(name, inv, report.get("pos"),
                                report.get("night", False))
