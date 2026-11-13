@@ -138,22 +138,26 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
             continue
         target, last_goto, chase_end = prey[0], 0, time.time() + 45
         pos = target.position
+        g.select(lambda i: i.endswith(("_sword", "_axe")))
+        g.aura_targets(animals.split("|"))  # Kill Aura times the swings
         while time.time() < chase_end:
             cur = m.entities(uuid=target.uuid, max_distance=80)
             if not cur:
                 break  # dead (or gone)
             pos = cur[0].position
-            me = g.pos()
-            if math.dist(me, pos) > 2.8:
-                if time.time() - last_goto > 1.5:
+            if math.dist(g.pos(), pos) > 2.5:
+                # A hit animal panics and runs: re-aim the path often.
+                if time.time() - last_goto > 0.8:
                     g.b("goto %d %d %d" % tuple(math.floor(v) for v in pos))
                     last_goto = time.time()
-                g.sleep(0.3)
+                g.sleep(0.25)
             else:
-                g.attack(cur[0])
-                g.sleep(0.65)
+                g.b("stop")
+                g.sleep(0.4)
+        g.aura_targets([])
         g.goto(*[math.floor(v) for v in pos], timeout=15, near=1)  # drops
         g.sleep(1)
+    g.aura_targets([])
     g.stop()
     return g.count(food) >= count
 

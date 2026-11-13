@@ -75,15 +75,22 @@ class Game:
     def setup(self):
         for k, v in BARITONE_SETTINGS.items():
             self.b(f"set {k} {v}")
-        # Kill Aura only at monsters (its default target is players).
-        aura = [h for h in HOSTILES if h not in ("enderman", "piglin_brute")]
-        m.chat(".settings kill-aura entities " + ",".join(aura))
+        self.aura_targets([], force=True)
         # GrimAC cancels hits from beyond vanilla reach (3 blocks), so a
         # longer aura range just wastes swings.
         m.chat(".settings kill-aura range 2.9")
         m.chat(".settings kill-aura walls-range 2.9")
         for mod in METEOR_MODULES:
             m.chat(f".toggle {mod} on")
+
+    def aura_targets(self, extra, force=False):
+        """Point Meteor's Kill Aura at monsters (never players), plus `extra`
+        entity types, e.g. the animal being hunted."""
+        aura = [h for h in HOSTILES if h not in ("enderman", "piglin_brute")]
+        wanted = ",".join(aura + list(extra))
+        if force or wanted != getattr(self, "_aura", None):
+            m.chat(".settings kill-aura entities " + wanted)
+            self._aura = wanted
 
     def respawn(self):
         """Leave the death screen (Meteor's auto-respawn only catches deaths
