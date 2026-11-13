@@ -1139,8 +1139,13 @@ def build_farm_room(g, facts, plots=20):
         # stand on the door side of the cell, never in it
         # two blocks back: from right next to it, Baritone parked the bot
         # half inside the cell and the block could not be placed
-        sx = min(c[0] + 2, x - 3)
-        g.place_at("dirt", *c, stand=(sx, y, c[2] if sx < x - 3 else z))
+        # (the two columns by the doorway: from the west, standing on top
+        # of the soil already laid there)
+        if c[0] + 2 <= x - 4:
+            stand = (c[0] + 2, y, c[2])
+        else:
+            stand = (c[0] - 2, y + 1, c[2])
+        g.place_at("dirt", *c, stand=stand)
     if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
         # The only surface errand left: wait for daylight in bed (all of
         # the above is underground, so it gets done at night too).
