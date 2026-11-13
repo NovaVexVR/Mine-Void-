@@ -317,8 +317,8 @@ def shelter(g, facts):
                 last_try = time.time()
                 g.status = "going to sleep"
                 g.use_on(bed[0] + 0.5, bed[1] + 0.4, bed[2] + 0.5)
-            return not g.is_night()
-        g.wait(morning, 700, 2)
+            return not g.is_night() and not g.is_dusk()
+        g.wait(morning, 900, 2)
     else:
         seal_in(g)
         g.wait(lambda: not g.is_night(), 700, 2)
