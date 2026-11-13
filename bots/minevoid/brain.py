@@ -101,8 +101,14 @@ class Agent:
         respawned = last[0] != eid[0] and last[1] == eid[1]
         self.entity_id = eid
         if (dead and not self.was_dead) or respawned:
-            self.death = (getattr(self, "last_alive_pos", None), time.time())
-            self.report(event=f"died at {self.death[0]}")
+            pos = getattr(self, "last_alive_pos", None)
+            self.death = (pos, time.time())
+            self.report(event=f"died at {pos}")
+            in_water = pos and g.block(*pos) in ("water", "bubble_column")
+            if (self.task or {}).get("skill") == "recover" or in_water:
+                # Died getting our gear back, or under water (drowned mobs,
+                # no air): that spot is not worth another life.
+                self.death = None
         self.was_dead = dead
         if dead:
             return
@@ -201,11 +207,10 @@ class Agent:
         death = getattr(self, "death", None)
         unarmed = g.count(items.CLASSES["sword"]) == 0
         if death and death[0] and time.time() - death[1] < 240 \
-                and not g.is_night() and not getattr(self, "recovering", False):
+                and not g.is_night():
             # Dropped items last five minutes: go and pick our gear back up,
-            # once. If that kills us too, the spot is camped: leave it.
+            # once. (A death while doing this cancels it; see tick.)
             self.death = None
-            self.recovering = True
             task = {"id": "recover_gear", "skill": "recover",
                     "args": {"pos": death[0]}}
         elif ((g.health() < 8 and g.hostiles(10)) or (unarmed and g.is_night())) \
@@ -217,8 +222,7 @@ class Agent:
                 task = {"id": "shelter", "skill": "shelter", "args": {}}
             else:
                 task = {"id": "dig_in", "skill": "dig_in", "args": {}}
-        else:
-            self.recovering = False
+
         if task["skill"] in ("recover", "dig_in"):
             pass
         elif g.is_night() and (task.get("surface") or unarmed
