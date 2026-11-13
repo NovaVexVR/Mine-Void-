@@ -138,7 +138,10 @@ class Agent:
             self.death = (pos, time.time())
             in_water = pos and g.block(*pos) in ("water", "bubble_column")
             self.report(event=f"died at {pos}" + (" in water" if in_water else ""))
-            if (self.task or {}).get("skill") == "recover" or in_water:
+            underground = pos and pos[1] < 55
+            if (self.task or {}).get("skill") == "recover" or in_water or underground:
+                # (Underground the mob that killed us is still there, and we
+                # come back with nothing: Void2 died twice at one spot.)
                 # Died getting our gear back, or under water (drowned mobs,
                 # no air): that spot is not worth another life.
                 self.death = None
