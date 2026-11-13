@@ -926,14 +926,84 @@ def fish(g, facts, count=20, timeout=900):
 
 
 def harvest(g, facts, radius=12):
-    """Harvest and replant the wheat farm with Baritone, then bake bread."""
+    """Harvest ripe wheat in the farm room by hand, pick up the drops,
+    repair and replant the plots, bake bread. (Baritone's farm mode left the
+    drops on the floor and dug out soil, letting the water spread.)"""
+    if not facts.get("farm_room"):
+        return harvest_outdoor(g, facts, radius)
+    base = facts["base"]
+    x, y, z = base
+    centre, corners, soil = farm_room_cells(base)
+    g.status = "harvesting the farm"
+    if not g.goto(x - 4, y + 1, z, timeout=180, near=1):
+        if not g.goto(*base, timeout=180, near=1):
+            return False
+    seeds = lambda i: i == "wheat_seeds"
+    ripe = [c for c in soil if (m.getblock(c[0], y + 1, c[2]) or "").startswith(
+        "minecraft:wheat[age=7")]
+    for c in ripe:
+        g.status = f"harvesting the farm ({len(ripe)} ripe)"
+        if math.dist(g.pos(), (c[0] + .5, y + 1.5, c[2] + .5)) > 3.5:
+            g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
+            g.stop()
+        m.player_look_at(c[0] + 0.5, y + 1.25, c[2] + 0.5)
+        g.sleep(0.25)
+        m.player_press_attack(True)
+        g.sleep(0.15)
+        m.player_press_attack(False)
+    pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
+    # Soil lost to digging or a flood comes back; till and plant every plot.
+    for c in soil:
+        if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
+                g.count(lambda i: i == "dirt"):
+            lay_soil(g, c, centre, (x - 8, x - 3), y)
+    planted = 0
+    for c in soil:
+        above = g.block(c[0], y + 1, c[2])
+        if above == "wheat":
+            planted += 1
+            continue
+        if above not in AIR or not g.count(seeds):
+            continue
+        if math.dist(g.pos(), (c[0] + .5, y + 1, c[2] + .5)) > 3.5:
+            g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
+            g.stop()
+        if g.block(*c) in ("dirt", "grass_block") and \
+                g.select(lambda i: i.endswith("_hoe")):
+            g.use_on(c[0] + 0.5, y + 0.99, c[2] + 0.5)
+        if g.block(*c) == "farmland" and g.select(seeds):
+            g.use_on(c[0] + 0.5, y + 0.93, c[2] + 0.5)
+            if g.block(c[0], y + 1, c[2]) == "wheat":
+                planted += 1
+    g.stop()
+    wheat = g.count(lambda i: i == "wheat")
+    if wheat >= 3:
+        crafting.craft(g, "bread", wheat // 3)
+    g.log(f"harvest: {len(ripe)} ripe, {planted} plots growing, "
+          f"{g.count(lambda i: i == 'bread')} bread")
+    return {"farm_plots": planted}
+
+
+def pick_up_drops(g, centre, radius):
+    """Walk over the item drops near `centre` so they get picked up."""
+    for _ in range(3):
+        drops = m.entities(type=".*item", position=list(centre), max_distance=radius)
+        if not drops:
+            return
+        for e in sorted(drops, key=lambda e: math.dist(e.position, g.pos())):
+            px, py, pz = e.position
+            if math.dist((px, py, pz), g.pos()) > 1.2:
+                g.goto_near(math.floor(px), math.floor(py), math.floor(pz),
+                            radius=0, timeout=10)
+        g.stop()
+        g.sleep(0.5)
+
+
+def harvest_outdoor(g, facts, radius=12):
+    """Harvest and replant an outdoor wheat farm with Baritone."""
     farm = facts["farm"]
     g.status = "harvesting the farm"
     g.goto_near(*farm, radius=2, timeout=180)
-    if g.count(lambda i: i == "wheat_seeds") == 0:
-        g.log("harvest: no seeds to replant with, keeping the first ones")
-    # Wheat is on the never-break list (Baritone trampled through crops on
-    # its way past); lift that while harvesting, keep farmland protected.
     guard = game.BARITONE_SETTINGS["blocksToDisallowBreaking"]
     g.b("set blocksToDisallowBreaking " + guard.replace(",wheat", ""))
     try:
