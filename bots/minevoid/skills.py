@@ -596,6 +596,8 @@ def base_openings(g, base, farm_room=False):
              for cy in range(lo[1] - 1, hi[1] + 2)
              for cz in range(lo[2] - 1, hi[2] + 2)]
     kinds = dict(zip(cells, m.getblocklist([list(c) for c in cells])))
+    if any(k is None or "void_air" in k for k in kinds.values()):
+        raise ValueError("base not loaded")  # unknown, not "sealed"
     air = lambda c: short(kinds.get(c)) in AIR
     inside = lambda c: all(lo[i] <= c[i] <= hi[i] for i in range(3))
     seen, todo, leaks = {(x, y, z)}, [(x, y, z)], []
@@ -620,6 +622,10 @@ def seal_base(g, facts):
     way out in the morning; whoever shelters next seals it again."""
     x, y, z = facts["base"]
     filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
+    # Go there first: from far away the base's chunks are not loaded and it
+    # looked sealed (a bot 200 blocks out reported 0 openings).
+    if math.dist(g.pos(), (x, y, z)) > 10 and not g.goto(x, y, z, timeout=300, near=1):
+        return False
     clear_clutter(g, facts)  # scaffolding hid the holes from view
     # A solid ceiling first: the farm room broke into a cave overhead and
     # plugs higher up kept getting dug through again.
