@@ -115,9 +115,21 @@ class Agent:
         self.entity_id = eid
         if (dead and not self.was_dead) or respawned:
             pos = getattr(self, "last_alive_pos", None)
+            try:
+                if dead:
+                    raise LookupError  # still on the death screen: ours is right
+                # The server's record of where we died: our own last
+                # position was often already the bed (Meteor respawns
+                # faster than our ticks).
+                spot = g.mc.player.getLastDeathLocation()
+                if spot.isPresent():
+                    bp = spot.get().pos()
+                    pos = (bp.getX(), bp.getY(), bp.getZ())
+            except Exception:
+                pass
             self.death = (pos, time.time())
-            self.report(event=f"died at {pos}")
             in_water = pos and g.block(*pos) in ("water", "bubble_column")
+            self.report(event=f"died at {pos}" + (" in water" if in_water else ""))
             if (self.task or {}).get("skill") == "recover" or in_water:
                 # Died getting our gear back, or under water (drowned mobs,
                 # no air): that spot is not worth another life.

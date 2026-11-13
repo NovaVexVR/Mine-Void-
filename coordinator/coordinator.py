@@ -384,11 +384,14 @@ class Coordinator:
                     # Underground deaths mark a dangerous spot (a dark cave
                     # full of exposed ore drew miners back to die again and
                     # again); miners keep away from it for a while.
+                    ev = r["event"]
                     try:
-                        p = json.loads(r["event"][len("died at "):])
+                        p = json.loads(ev[len("died at "):ev.index("]") + 1])
                     except ValueError:
                         p = None
-                    if p and p[1] < 55:
+                    # (Lake beds expose ore: miners dived in after it and
+                    # drowned fighting the Drowned.)
+                    if p and (p[1] < 55 or ev.endswith("in water")):
                         now = time.time()
                         self.facts["danger"] = [d for d in self.facts.get("danger", [])
                                                 if now - d[3] < 3600][-7:] + [p + [now]]
