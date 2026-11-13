@@ -610,6 +610,21 @@ def seal_base(g, facts):
     way out in the morning; whoever shelters next seals it again."""
     x, y, z = facts["base"]
     filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
+    # A solid ceiling first: the farm room broke into a cave overhead and
+    # plugs higher up kept getting dug through again.
+    west = x - 8 if facts.get("farm_room") else x - 2
+    ceiling = [(cx, y + 3, cz) for cx in range(west, x + 3) for cz in range(z - 2, z + 3)
+               if cx != x - 3 or cz == z]
+    holes = [c for c, k in zip(ceiling, m.getblocklist([list(c) for c in ceiling]))
+             if short(k) in AIR]
+    for c in holes:
+        if filler_count() == 0:
+            break
+        g.status = f"closing the ceiling ({len(holes)} holes)"
+        filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
+                                             and i != "dirt",
+                                             g.count(lambda j, i=i: j == i)))
+        g.place_against(filler, *c, stand=(c[0], y, c[2]))
     for _ in range(3):
         leaks = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
         if not leaks:
