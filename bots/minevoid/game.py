@@ -304,6 +304,26 @@ class Game:
         m.player_press_use(False)
         time.sleep(0.4)
 
+    TORCH_AIM = {"east": (0.2, 0.5), "west": (0.8, 0.5),
+                 "south": (0.5, 0.2), "north": (0.5, 0.8)}
+
+    def break_torch(self, x, y, z):
+        """Knock out a torch. A wall torch hangs against one side of its
+        cell, so aiming at the cell's centre hit the wall behind it."""
+        state = m.getblock(x, y, z) or ""
+        facing = state.split("facing=")[1].split(",")[0].rstrip("]") \
+            if "facing=" in state else None
+        ox, oz = self.TORCH_AIM.get(facing, (0.5, 0.5))
+        m.player_look_at(x + ox, y + (0.6 if facing else 0.3), z + oz)
+        time.sleep(0.3)
+        hit = m.player_get_targeted_block(4.5)
+        if not hit or list(hit.position) != [x, y, z]:
+            return False  # not on the torch: do not dig the wall instead
+        m.player_press_attack(True)
+        time.sleep(0.15)
+        m.player_press_attack(False)
+        return self.wait_plain(lambda: self.block(x, y, z) in ("air", "cave_air"), 1.0)
+
     def break_block(self, x, y, z, timeout=15):
         m.player_look_at(x + 0.5, y + 0.5, z + 0.5)
         time.sleep(0.2)
