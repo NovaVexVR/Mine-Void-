@@ -127,7 +127,8 @@ live runs; see Status for details.
 **Stage 1 – early game** (mostly working, being stabilised)
 1. Wood -> wooden -> stone tools, food, underground base at spawn – done
 2. Sustainable food: shared animal sightings (done), cooking (done), wheat
-   farm + harvests, fishing once someone has string, breeding animals
+   farm room in the base (built), harvests, fishing once someone has
+   string, breeding animals
 3. A bed for every bot in the base (respawn point, sleep through nights) –
    done; shears to shear sheep instead of killing them
 4. Iron kit for every bot: pickaxe, shears, shield, sword (done for two
@@ -175,6 +176,11 @@ Seen working in live runs with three bots:
 * the iron kit end to end: two miners branch-mine iron legitly, smelt it,
   and bots craft pickaxe, shears, shield (equipped in the off-hand) and
   sword in priority order, taking ingots from the chest when needed
+
+* a wheat farm room dug off the base's west wall: a bot made a bucket from
+  stored iron, found water by scanning the loaded chunks, carried in dirt,
+  poured the water into the centre and planted the hydrated, torch-lit
+  plots (a teammate picked up the kit when the first carrier died)
 
 Written but not yet seen end to end: iron armour, fishing (a rod was crafted
 but the bot died before casting), farm harvests, shearing. Phases after iron
