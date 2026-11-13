@@ -205,7 +205,7 @@ class Agent:
             self.recovering = True
             task = {"id": "recover_gear", "skill": "recover",
                     "args": {"pos": death[0]}}
-        elif (g.health() < 8 or unarmed) and (g.hostiles(10) or g.is_night()) \
+        elif ((g.health() < 8 and g.hostiles(10)) or (unarmed and g.is_night())) \
                 and task["skill"] != "shelter":
             # Badly hurt, or empty-handed after a respawn, with mobs about:
             # run for the (sealed) base if it is close, else dig in here.
