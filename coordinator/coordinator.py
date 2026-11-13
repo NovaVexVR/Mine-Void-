@@ -380,6 +380,18 @@ class Coordinator:
                 self.log(f"{name} finished {r['done']}")
             if r.get("event"):
                 self.log(f"{name}: {r['event']}")
+                if r["event"].startswith("died at ["):
+                    # Underground deaths mark a dangerous spot (a dark cave
+                    # full of exposed ore drew miners back to die again and
+                    # again); miners keep away from it for a while.
+                    try:
+                        p = json.loads(r["event"][len("died at "):])
+                    except ValueError:
+                        p = None
+                    if p and p[1] < 55:
+                        now = time.time()
+                        self.facts["danger"] = [d for d in self.facts.get("danger", [])
+                                                if now - d[3] < 3600][-7:] + [p + [now]]
                 if r["event"].endswith(" failed"):
                     self.failed_at[(name, r["event"][:-len(" failed")])] = time.time()
             now = time.time()

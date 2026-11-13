@@ -37,6 +37,28 @@ def come_home(g, facts, force=False, leash=LEASH):
     return True
 
 
+def avoid_danger(g, facts, radius=28):
+    """Leave the area of a teammate's recent underground death: Baritone
+    mines the nearest exposed ore, which kept leading bots back into the
+    same dark cave. Moving away makes other ore the nearest."""
+    here = g.pos()
+    spots = [d[:3] for d in facts.get("danger", [])
+             if time.time() - d[3] < 3600 and math.dist(d[:3], here) < radius]
+    if not spots:
+        return False
+    d = spots[0]
+    dx, dz = here[0] - d[0], here[2] - d[2]
+    n = math.hypot(dx, dz) or 1.0
+    tx, tz = int(d[0] + dx / n * (radius + 30)), int(d[2] + dz / n * (radius + 30))
+    g.stop()
+    g.status = f"keeping away from where a teammate died at {[round(v) for v in d]}"
+    g.b(f"goto {tx} {tz}")
+    g.sleep(2)
+    g.wait(lambda: math.dist(g.pos(), d) > radius + 10 or not g.busy(), 120, 1)
+    g.stop()
+    return True
+
+
 def light_the_way(g, last):
     """Underground, drop a torch every ~10 blocks: caves full of mobs were
     killing the miners, and lit tunnels stop new spawns. Returns where the
@@ -71,6 +93,7 @@ def gather(g, facts, blocks, item, count, timeout=900):
         come_home(g, facts)
         if blocks in ("iron", "coal", "stone"):
             last_torch = light_the_way(g, last_torch)
+            avoid_danger(g, facts)
         base = facts.get("base")
         if base and blocks not in ("logs", "grass") and math.dist(g.pos(), base) < 24:
             # Do not quarry the base itself (bots mined its roof away).
