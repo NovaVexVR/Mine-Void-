@@ -871,6 +871,24 @@ def deliver(g, facts, to, item, count, timeout=420):
     return False
 
 
+def receive(g, facts, frm, timeout=90):
+    """A teammate is bringing us something: stay close, and walk over to
+    any items lying nearby so the hand-over actually lands in our pockets
+    (items thrown into water drift; standing still is not enough)."""
+    end = time.time() + timeout
+    while time.time() < end:
+        g.status = f"receiving from {frm}"
+        drops = m.entities(type=".*\\.item$", max_distance=8, sort="nearest", limit=1)
+        if drops:
+            x, y, z = drops[0].position
+            g.goto_near(math.floor(x), math.floor(y), math.floor(z), radius=0, timeout=8)
+        g.sleep(1)
+        team = (facts.get("_team") or {})
+        if frm not in team:
+            break
+    return True
+
+
 def assist(g, facts, to):
     """Run to a teammate who is hurt and under attack; Kill Aura and the
     fight routine do the rest once we are next to them."""
@@ -896,7 +914,7 @@ def idle(g, facts):
 
 SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "build_base": build_base, "smelt": smelt, "build_farm": build_farm,
-          "deliver": deliver, "assist": assist, "idle": idle,
+          "deliver": deliver, "assist": assist, "idle": idle, "receive": receive,
           "dig_in": dig_in, "recover": recover,
           "light_base": light_base, "bed": bed, "fish": fish,
           "seal_base": seal_base, "build_exit": build_exit,

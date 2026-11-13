@@ -217,8 +217,8 @@ class Coordinator:
             t = b.get("task", {})
             if t.get("skill") == "deliver" and t["args"]["to"] == name \
                     and dist(b) < 48 and str(b.get("status", "")).startswith("delivering"):
-                return {"id": f"receive:{other}", "skill": "idle", "args": {},
-                        "phase": "team"}
+                return {"id": f"receive:{other}", "skill": "receive",
+                        "args": {"frm": other}, "phase": "team"}
         if night:
             return None
         handoff = self.kit_delivery(name, inv, team, dist)
@@ -248,6 +248,8 @@ class Coordinator:
                 tid = f"deliver:{item}:{other}"
                 if [h for h in self.holders(tid, now) if h != name]:
                     continue
+                if now - self.done_at.get(f"{name}>{tid}", 0) < 120:
+                    continue  # just did this one; let it land first
                 return {"id": tid, "skill": "deliver", "surface": True,
                         "args": {"to": other, "item": item, "count": give},
                         "phase": "team"}
@@ -337,6 +339,7 @@ class Coordinator:
                 self.save()
             if r.get("done"):
                 self.done_at[r["done"]] = time.time()
+                self.done_at[f"{name}>{r['done']}"] = time.time()
                 self.done.setdefault(r["done"], [])
                 if name not in self.done[r["done"]]:
                     self.done[r["done"]].append(name)
