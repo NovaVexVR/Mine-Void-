@@ -215,6 +215,7 @@ def store(g, facts):
     contents = chest_contents(g)
     g.close_screen()
     g.log(f"stored valuables; chest holds {contents}")
+    seal_base(g, facts)  # we are home anyway: close the holes bots dug
     return {"storage": contents}
 
 
