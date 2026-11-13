@@ -1149,6 +1149,8 @@ def build_farm_room(g, facts, plots=20):
             stand = (c[0] + 2, y, c[2])
         else:
             stand = (c[0] - 2, y + 1, c[2])
+            if (stand[0], stand[2]) == (centre[0], centre[2]):
+                stand = (stand[0], y + 1, stand[2] + 1)  # not on the water hole
         g.place_at("dirt", *c, stand=stand)
     if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
         # The only surface errand left: wait for daylight in bed (all of
