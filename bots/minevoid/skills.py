@@ -1037,6 +1037,34 @@ def farm_room_cells(base):
     return (cx, y, z), corners, soil
 
 
+def lay_soil(g, c, centre, xs, y):
+    """Put a dirt block in floor cell `c` of the farm room. Clicking the face
+    of any visible solid neighbour (the floor, or soil laid next to it), from
+    wherever we are first and then from a few spots around it: fixed standing
+    spots failed (Baritone parked the bot inside the cell, short of the spot,
+    or behind laid soil that hid the floor)."""
+    def ok(st):
+        return (xs[0] <= st[0] <= xs[1] and (st[0], st[2]) != (c[0], c[2])
+                and (st[0], st[2]) != (centre[0], centre[2]))
+    spots = [None] + [s for s in (
+        (c[0] + 2, y, c[2]), (c[0] - 2, y + 1, c[2]), (c[0], y + 1, c[2] - 2),
+        (c[0], y + 1, c[2] + 2), (c[0] + 1, y + 1, c[2] + 1),
+        (c[0] - 1, y + 1, c[2] - 1)) if ok(s)]
+    for st in spots:
+        if st:
+            g.goto(*st, timeout=15)
+            g.stop()
+        bx, by, bz = g.block_pos()
+        if (bx, bz) == (c[0], c[2]):
+            continue  # standing in it
+        if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4.2:
+            continue
+        if g.place_against("dirt", *c, stand=(bx, by, bz)):
+            return True
+    g.log(f"could not place dirt at {list(c)}")
+    return False
+
+
 def reclaim_water(g, cells):
     """Scoop a misplaced water source in `cells` back into an empty bucket."""
     if not g.count(lambda i: i == "bucket"):
@@ -1158,18 +1186,7 @@ def build_farm_room(g, facts, plots=20):
             g.goto_near(*c, radius=2, timeout=20)
             g.stop()
             g.break_torch(*c)
-        # stand on the door side of the cell, never in it
-        # two blocks back: from right next to it, Baritone parked the bot
-        # half inside the cell and the block could not be placed
-        # (the two columns by the doorway: from the west, standing on top
-        # of the soil already laid there)
-        if c[0] + 2 <= x - 4:
-            stand = (c[0] + 2, y, c[2])
-        else:
-            stand = (c[0] - 2, y + 1, c[2])
-            if (stand[0], stand[2]) == (centre[0], centre[2]):
-                stand = (stand[0], y + 1, stand[2] + 1)  # not on the water hole
-        g.place_at("dirt", *c, stand=stand)
+        lay_soil(g, c, centre, (x - 8, x - 3), y)
     if g.block(*centre) != "water" and not g.count(lambda i: i == "water_bucket"):
         reclaim_water(g, [(cx, y, cz) for cx in range(x - 8, x - 3)
                           for cz in range(z - 2, z + 3) if (cx, y, cz) != centre])
