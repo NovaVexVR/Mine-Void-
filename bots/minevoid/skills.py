@@ -849,6 +849,19 @@ def farm_spots(g, radius=20):
                   key=lambda c: math.dist(c, anchor))
 
 
+def dry_farm_spots(g, center, radius=7):
+    """Grass/dirt blocks with open air above near `center` (surface level)."""
+    cx, cy, cz = center
+    cells = [(x, y, z) for x in range(cx - radius, cx + radius + 1)
+             for z in range(cz - radius, cz + radius + 1)
+             for y in range(cy - 3, cy + 3)]
+    kinds = dict(zip(cells, (short(k) for k in m.getblocklist([list(c) for c in cells]))))
+    above_ok = lambda c: kinds.get((c[0], c[1] + 1, c[2])) in ("air", "short_grass")
+    spots = [c for c in cells if kinds[c] in ("grass_block", "dirt") and above_ok(c)
+             and c[1] + 1 < cy + 3]
+    return sorted(spots, key=lambda c: math.dist(c, center))
+
+
 def build_farm(g, facts, plots=8):
     """Wheat farm next to natural water: collect seeds, till, plant.
     Harvest later with Baritone's `farm` process."""
@@ -862,7 +875,7 @@ def build_farm(g, facts, plots=8):
             return False
     spots = []
     home = facts.get("base") or m.world_info().spawn
-    for attempt in range(8):
+    for attempt in range(3):
         # Close to home: the farm has to be tended (and defended) for good.
         come_home(g, facts, leash=LEASH // 2)
         g.status = "looking for water"
@@ -872,8 +885,15 @@ def build_farm(g, facts, plots=8):
         g.b("explore")
         g.sleep(25)
         g.stop()
+    if len(spots) < 2 and facts.get("base_exit"):
+        # No water close to home. Crops grow on dry farmland too, only
+        # slower, and next to the base door the farm is easy to tend.
+        ex = facts["base_exit"]
+        g.status = "making a dry farm by the base"
+        g.goto_near(*ex, radius=2, timeout=120)
+        spots = dry_farm_spots(g, ex)
     if len(spots) < 2:
-        g.log("farm: no tillable ground next to water found")
+        g.log("farm: no tillable ground found")
         return False
     g.log(f"farm: {len(spots)} candidate plots near water at {spots[0]}")
     planted = []
