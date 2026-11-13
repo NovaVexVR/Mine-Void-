@@ -79,8 +79,8 @@ class Game:
         self.aura_targets([], force=True)
         # GrimAC cancels hits from beyond vanilla reach (3 blocks), so a
         # longer aura range just wastes swings.
-        m.chat(".settings kill-aura range 2.9")
-        m.chat(".settings kill-aura walls-range 2.9")
+        m.chat(".settings kill-aura range 2.6")
+        m.chat(".settings kill-aura walls-range 2.6")
         for mod in METEOR_MODULES:
             m.chat(f".toggle {mod} on")
 
