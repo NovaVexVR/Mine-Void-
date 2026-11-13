@@ -48,14 +48,22 @@ def avoid_danger(g, facts, radius=28):
     if not spots:
         return False
     d = spots[0]
+    # Far enough that the spot's chunks unload: Baritone mines the nearest
+    # visible ore in loaded chunks, and from 60 blocks away that was still
+    # the deadly cave. Head away from it, or home if that leaves the leash.
+    home = facts.get("base") or here
     dx, dz = here[0] - d[0], here[2] - d[2]
     n = math.hypot(dx, dz) or 1.0
-    tx, tz = int(d[0] + dx / n * (radius + 30)), int(d[2] + dz / n * (radius + 30))
+    tx, tz = d[0] + dx / n * 130, d[2] + dz / n * 130
+    if math.dist((tx, tz), (home[0], home[2])) > LEASH:
+        hx, hz = home[0] - d[0], home[2] - d[2]
+        hn = math.hypot(hx, hz) or 1.0
+        tx, tz = d[0] + hx / hn * 130, d[2] + hz / hn * 130
     g.stop()
     g.status = f"keeping away from where a teammate died at {[round(v) for v in d]}"
-    g.b(f"goto {tx} {tz}")
+    g.b(f"goto {int(tx)} {int(tz)}")
     g.sleep(2)
-    g.wait(lambda: math.dist(g.pos(), d) > radius + 10 or not g.busy(), 120, 1)
+    g.wait(lambda: math.dist(g.pos(), d) > 120 or not g.busy(), 240, 1)
     g.stop()
     return True
 
