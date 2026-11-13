@@ -129,8 +129,9 @@ live runs; see Status for details.
 2. Sustainable food: shared animal sightings (done), cooking (done), wheat
    farm + harvests, fishing once someone has string, breeding animals
 3. A bed for every bot in the base (respawn point, sleep through nights) –
-   two of three so far; shears to shear sheep instead of killing them
-4. Iron kit for every bot: pickaxe, shears, shield, sword, full armour
+   done; shears to shear sheep instead of killing them
+4. Iron kit for every bot: pickaxe, shears, shield, sword (done for two
+   bots), then full armour
 
 **Stage 2 – mid game**
 5. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
@@ -161,27 +162,36 @@ Seen working in live runs with three bots:
 
 * server + anti-cheat + anti-xray, headless clients joining, autorun agent
 * wood -> wooden tools -> stone tools (about 6-8 minutes per bot from nothing)
-* hunting, eating, night shelter in the base, underground base with table,
-  furnace and chest
-* legit iron mining, smelting, iron pickaxe and sword
-* role split, home leash, recovery after death, sticky roles
-* a bed crafted at the base and placed, "Respawn point set", the bot
-  sleeping in it at night
+* underground base at spawn: table, furnace, chest, torches, a staircase
+  exit with a door, sealed every night
+* a bed for every bot in the base ("Respawn point set"), bots sleeping and
+  the night being skipped; lost beds detected and replaced, spare beds and
+  wool handed to teammates
+* everyone heading home at dusk and sleeping in the base
+* hunting with shared animal sightings and Kill Aura, cooking, food handed
+  to hungry teammates
+* shared storage in the base chest (deposits every night, tracked by the
+  coordinator)
+* the iron kit end to end: two miners branch-mine iron legitly, smelt it,
+  and bots craft pickaxe, shears, shield (equipped in the off-hand) and
+  sword in priority order, taking ingots from the chest when needed
 
-Written but not yet seen end to end: item hand-offs (`deliver`), `assist`
-reaching a rescue, the iron kit hand-outs, shields/armour, fishing, farm
-harvests, skipping a night (needs two beds). Phases after iron (diamonds,
-Nether, blaze rods, ender pearls, stronghold, dragon) are `todo`.
+Written but not yet seen end to end: iron armour, fishing (a rod was crafted
+but the bot died before casting), farm harvests, shearing. Phases after iron
+(diamonds, enchanting, Nether, blaze rods, ender pearls, stronghold, dragon)
+are `todo`.
 
 Known problems:
 
-* **Food is scarce.** Animals near spawn are used up and do not respawn, so
-  hunters range far and slowly; fishing needs string first. This is the
-  current bottleneck: hungry bots cannot regenerate health.
-* **Wool for beds** depends on finding sheep; only one bed so far.
-* GrimAC cancels attacks from beyond 3 blocks (`Reach`), so attack range is
-  capped at 2.9. Its `Simulation` (movement) check also fired in two bursts
-  on one bot early on; the cause was not pinned down.
+* **Deaths still cost gear.** Skeletons, creepers and Drowned (near water)
+  are the main killers; a bot that dies loses its kit unless it gets back to
+  its drop in time. Armour is the next defence.
+* **Food** is still thin: nearby animals do not respawn, so hunters range
+  far. Farming and fishing would make it sustainable.
+* GrimAC: hits are kept within 2.6 blocks (`Reach`); Baritone runs with
+  `freeLook` off, since server-only rotations made Grim cancel block
+  placements (`BadPacketsJ`) and left bots stuck. Paper anti-xray fakes ores
+  only: fake air pockets broke Baritone's pathing.
 * Reflection calls from Minescript are slow (a craft takes 5-20 s). A small
   purpose-built Fabric mod would make inventory work instant.
 
