@@ -285,7 +285,8 @@ class Coordinator:
         for p in self.goal["phases"]:
             for t in p["tasks"]:
                 if t.get("preempt") and t["id"] != task["id"] \
-                        and not self.satisfied(t, name, inv):
+                        and not self.satisfied(t, name, inv) \
+                        and self.kit_task(dict(t), inv) is not None:
                     return None  # something more important came up
         plan = next((t for p in self.goal["phases"] for t in p["tasks"]
                      if t["id"] == task["id"]), None)
