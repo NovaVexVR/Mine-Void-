@@ -90,9 +90,12 @@ class Coordinator:
         means spare material)."""
         return sum(c for _, c in self.kit_missing(inv, upto)) - self.kit_held(inv)
 
+    def storage(self):
+        return self.facts.get("storage") or {}
+
     def team_kit_need(self):
         return sum(self.kit_need(b.get("inventory", {}))
-                   for b in self.active().values())
+                   for b in self.active().values()) - self.kit_held(self.storage())
 
     def kit_task(self, task, inv):
         """Fill in kit tasks; None if there is nothing to do for this bot."""
@@ -108,9 +111,16 @@ class Coordinator:
             if not missing:
                 return None
             item, cost = missing[0]
-            if self.kit_held(inv, raw=False) < cost:
-                return None
-            return dict(task, id=f"craft_{item}", args={"item": item})
+            held = self.kit_held(inv, raw=False)
+            if held >= cost:
+                return dict(task, id=f"craft_{item}", args={"item": item})
+            stored = count(self.storage(), self.goal["kit"]["material"])
+            if held + stored >= cost and "base" in self.facts:
+                return dict(task, id=f"craft_{item}", skill="craft_from_storage",
+                            at_base=True,
+                            args={"item": item, "material": self.goal["kit"]["material"],
+                                  "cost": cost})
+            return None
         return task
 
     def kit_delivery(self, name, inv, team, dist):
@@ -156,6 +166,8 @@ class Coordinator:
             return True  # not applicable to this bot right now
         if "needs_fact" in task and task["needs_fact"] not in self.facts:
             return True  # not possible yet
+        if "storage_has" in task and not has_all(self.storage(), task["storage_has"]):
+            return True
         if "requires_any" in task and \
                 not any(has_all(inv, alt) for alt in task["requires_any"]):
             return True

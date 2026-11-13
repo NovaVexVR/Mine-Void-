@@ -43,6 +43,9 @@ class Agent:
         lost, g.lost = getattr(g, "lost", []), []
         if lost:
             extra["undone"] = lost
+        pending, g.pending_facts = getattr(g, "pending_facts", {}), {}
+        if pending:
+            extra["facts"] = dict(extra.get("facts") or {}, **pending)
         body = dict(name=g.name, pos=[round(v) for v in g.pos()],
                     health=round(g.health(), 1), food=g.hunger(),
                     inventory=g.inv(), status=g.status, night=g.is_night(),

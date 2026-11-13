@@ -70,6 +70,7 @@ class Game:
         self.on_tick = None  # set by the agent: heartbeat + survival
         self.status = "starting"
         self.lost = []  # finished tasks whose result has since been lost
+        self.pending_facts = {}  # facts learned mid-skill, sent with the next report
         self._click = None
 
     def setup(self):

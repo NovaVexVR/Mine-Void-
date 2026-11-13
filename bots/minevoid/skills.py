@@ -162,6 +162,89 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food"):
     return g.count(food) >= count
 
 
+# ---------------------------------------------------------------------------
+# Shared storage: the base chest. What is in a chest survives deaths, and
+# any bot can take from it, so it is how the team pools iron and loot.
+
+VALUABLES = ("raw_iron", "iron_ingot", "raw_gold", "gold_ingot", "diamond",
+             "redstone", "lapis_lazuli", "emerald", "string", "leather",
+             "ender_pearl", "blaze_rod", "obsidian", "book", "feather")
+
+
+def open_chest(g, facts):
+    x, y, z = facts["base"]
+    if math.dist(g.pos(), (x, y, z)) > 6:
+        g.goto(x, y, z, timeout=240, near=1)
+    if not g.open_block("chest", "Chest"):
+        return False
+    g.sync_menu()
+    return True
+
+
+def chest_contents(g):
+    out = {}
+    menu = g.menu()
+    for i in range(27):
+        st = menu.getSlot(i).getItem()
+        if not st.isEmpty():
+            n, item = str(st.toString()).split(" ", 1)
+            out[short(item)] = out.get(short(item), 0) + int(n)
+    return out
+
+
+def store(g, facts):
+    """Put valuables in the base chest (and report what it now holds)."""
+    g.status = "storing valuables"
+    if not open_chest(g, facts):
+        return False
+    for st in m.player_inventory():
+        if st.slot < 36 and short(st.item) in VALUABLES:
+            g.click(g.menu_slot(st.slot, 27), 0, "QUICK_MOVE")
+    time.sleep(0.4)
+    contents = chest_contents(g)
+    g.close_screen()
+    g.log(f"stored valuables; chest holds {contents}")
+    return {"storage": contents}
+
+
+def withdraw(g, facts, item, n):
+    """Take at least n of an item out of the base chest (whole stacks)."""
+    if not open_chest(g, facts):
+        return None
+    menu, got = g.menu(), 0
+    for i in range(27):
+        if g.count(lambda j: j == item) >= n:
+            break
+        st = menu.getSlot(i).getItem()
+        if not st.isEmpty() and short(str(st.toString()).split(" ", 1)[1]) == item:
+            g.click(i, 0, "QUICK_MOVE")
+            time.sleep(0.2)
+    contents = chest_contents(g)
+    g.close_screen()
+    return contents
+
+
+def craft_from_storage(g, facts, item, material, cost):
+    """Collect the material from the base chest, craft, put the rest back."""
+    g.status = f"fetching {material} to craft {item}"
+    contents = withdraw(g, facts, material, cost)
+    if contents is None or g.count(lambda j: j == material) < cost:
+        return {"storage": contents} if contents is not None else False
+    ok = craft(g, facts, item)
+    stored = store(g, facts)
+    return stored if ok else False
+
+
+def smelt_storage(g, facts):
+    """Smelt the raw iron waiting in the chest and store the ingots."""
+    contents = withdraw(g, facts, "raw_iron", 64)
+    if contents is None:
+        return False
+    if g.count(lambda j: j == "raw_iron"):
+        smelt(g, facts, "raw_iron", "iron_ingot", 64)
+    return store(g, facts)
+
+
 def shear(g, facts, timeout=300):
     """Shear sheep until we hold three wool of one colour. Unlike killing,
     this keeps the flock (wool grows back), so beds stop depending on
@@ -209,6 +292,10 @@ def shelter(g, facts):
     if base and math.dist(g.pos(), base) < LEASH \
             and g.goto(*base, timeout=180, near=2):
         seal_base(g, facts)
+        if any(short(st.item) in VALUABLES for st in m.player_inventory()):
+            result = store(g, facts)
+            if result:
+                g.pending_facts.update(result)
         bed = facts.get(f"bed_{g.name}")
         if bed and not g.block(*bed).endswith("_bed"):
             # Our bed is gone (broken while pathing, before the guard
@@ -813,4 +900,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "dig_in": dig_in, "recover": recover,
           "light_base": light_base, "bed": bed, "fish": fish,
           "seal_base": seal_base, "build_exit": build_exit,
+          "store": store, "craft_from_storage": craft_from_storage,
+          "smelt_storage": smelt_storage,
           "harvest": harvest}
