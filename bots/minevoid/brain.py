@@ -77,6 +77,7 @@ class Agent:
         self.facts.clear()
         self.facts.update(reply["facts"], _team=reply["team"],
                           _animals=reply.get("animals", []))
+        self.g.facts = self.facts  # Game routes through the base door with it
         return reply["task"]
 
     def sightings(self):

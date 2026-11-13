@@ -75,6 +75,7 @@ def gather(g, facts, blocks, item, count, timeout=900):
         if base and blocks not in ("logs", "grass") and math.dist(g.pos(), base) < 24:
             # Do not quarry the base itself (bots mined its roof away).
             g.status = "leaving the base to dig"
+            g.via_door(base[0] + 40, base[1] + 12, base[2])  # not through a wall
             g.b(f"goto {base[0] + 40} {base[2]}")
             g.wait(lambda: math.dist(g.pos(), base) >= 24 or not g.busy(), 90, 1)
             g.stop()

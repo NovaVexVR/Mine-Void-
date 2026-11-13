@@ -190,8 +190,37 @@ class Game:
         for key in ("forward", "attack", "use", "jump", "sneak"):
             getattr(m, f"player_press_{key}")(False)
 
+    def inside_base(self, pos):
+        base = getattr(self, "facts", {}).get("base")
+        # the room, its farm room to the west and the bottom of the stairs
+        return bool(base) and abs(pos[0] - base[0] - .5) < 10 \
+            and abs(pos[2] - base[2] - .5) < 8 and abs(pos[1] - base[1]) < 4
+
+    def via_door(self, x, y, z):
+        """Going into or out of the base: take the stairs and the door instead
+        of letting Baritone tunnel straight through the walls (bots kept
+        digging two-high holes that let mobs in and cost a day of sealing)."""
+        exit_ = getattr(self, "facts", {}).get("base_exit")
+        if not exit_ or self.inside_base(self.pos()) == self.inside_base((x + .5, y, z + .5)):
+            return
+        if math.dist(self.pos(), exit_) > 48 and not self.inside_base(self.pos()):
+            # far out: walk normally to the top of the stairs first
+            self.b(f"goto {exit_[0]} {exit_[1]} {exit_[2]}")
+            self.sleep(1)
+            self.wait(lambda: math.dist(self.pos(), exit_) < 3 or not self.busy(), 300)
+        self.b("set allowBreak false")
+        try:
+            target = exit_ if self.inside_base(self.pos()) else (x, y, z)
+            self.b(f"goto {target[0]} {target[1]} {target[2]}")
+            self.sleep(1)
+            self.wait(lambda: math.dist(self.pos(), target) < 3 or not self.busy(), 120)
+        finally:
+            self.b("stop")
+            self.b("set allowBreak true")
+
     def goto(self, x, y, z, timeout=120, near=0):
         """Walk (digging/bridging as needed) to a block. True on arrival."""
+        self.via_door(x, y, z)
         self.b(f"goto {x} {y} {z}")
         self.sleep(1)
 
@@ -205,6 +234,7 @@ class Game:
 
     def goto_near(self, x, y, z, radius=2, timeout=60):
         """Path to within `radius` blocks of a position."""
+        self.via_door(x, y, z)
         goal = JavaClass("baritone.api.pathing.goals.GoalNear")(
             JavaClass("net.minecraft.core.BlockPos")(x, y, z), radius)
         self.baritone.getCustomGoalProcess().setGoalAndPath(goal)
