@@ -240,6 +240,7 @@ class Coordinator:
                 oinv = b.get("inventory", {})
                 if (other == name or dist(b) > 400 or b.get("health", 0) <= 0
                         or count(oinv, rule.get("need_spec", item)) >= rule["low"]
+                        or ("max_food" in rule and b.get("food", 20) > rule["max_food"])
                         or ("to_not_done" in rule
                             and other in self.done.get(rule["to_not_done"], []))
                         or ("skip_if_have" in rule

@@ -49,7 +49,7 @@
  ],
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shears", 2], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},
  "sharing": [
-  {"item": "food", "low": 1, "keep": 2, "give": 2},
+  {"item": "food", "low": 1, "keep": 2, "give": 2, "max_food": 12, "note": "only to teammates who are actually hungry"},
   {"item": "bed", "need_spec": "bed_material", "low": 1, "keep": 0, "give": 1, "min_give": 1, "giver_done": "bed", "to_not_done": "bed", "note": "a spare bed goes to whoever has none"},
   {"item": "wool", "need_spec": "bed_material", "low": 1, "keep": 0, "give": 3, "min_give": 1, "giver_done": "bed", "to_not_done": "bed", "note": "spare wool goes to whoever still needs a bed"}
  ],
