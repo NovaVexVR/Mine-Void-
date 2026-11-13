@@ -1037,6 +1037,30 @@ def farm_room_cells(base):
     return (cx, y, z), corners, soil
 
 
+def dig_out(g, cells, tries=2, keep=()):
+    """Break every non-air block of `cells` (in order), walking up to each.
+    Returns the cells still solid."""
+    for _ in range(tries):
+        kinds = dict(zip(cells, (short(k) for k in
+                                 m.getblocklist([list(c) for c in cells]))))
+        todo = [c for c in cells if kinds[c] not in AIR
+                and kinds[c] not in ("torch", "wall_torch", "water")
+                and not (c in keep and kinds[c] in ("dirt", "farmland"))]
+        if not todo:
+            return []
+        for i, c in enumerate(todo):
+            if g.block(*c) in AIR:
+                continue
+            g.status = f"digging the farm room ({len(todo) - i} blocks left)"
+            if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
+                g.goto_near(c[0], c[1], c[2], radius=2, timeout=25)
+                g.stop()
+            g.select(lambda i: i.endswith("_pickaxe"))
+            g.break_block(*c, timeout=6)
+    return [c for c in cells if g.block(*c) not in AIR + ("torch", "wall_torch", "water")
+            and not (c in keep and g.block(*c) in ("dirt", "farmland"))]
+
+
 def build_farm_room(g, facts, plots=20):
     """An underground wheat farm inside the base: a 5x5 room off the west
     wall, soil carried in (the base is solid stone), torches in the
@@ -1080,16 +1104,25 @@ def build_farm_room(g, facts, plots=20):
     # in the base, and the sealing job walled it up again.
     g.pending_facts["farm_room"] = True
     g.wait(lambda: facts.get("farm_room"), 15, 1)
+    room = [(cx, cy, cz) for cx in range(x - 3, x - 9, -1)  # door side first
+            for cz in range(z - 2, z + 3) for cy in range(y, y + 3)
+            if cx != x - 3 or cz == z]                      # doorway: one wide
     g.b("sel clear")
     g.b(f"sel 1 {x - 8} {y} {z - 2}")
-    g.b(f"sel 2 {x - 4} {y + 3} {z + 2}")
+    g.b(f"sel 2 {x - 4} {y + 2} {z + 2}")
     g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
     g.b(f"sel 2 {x - 3} {y + 2} {z}")
     g.b("sel cleararea")
     g.sleep(3)
-    g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 600, 2)
+    g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 300, 2)
     g.b("sel clear")
     g.stop()
+    # Baritone's builder stopped early and left most of the room solid
+    # (nowhere to put the soil): break whatever is left ourselves.
+    left = dig_out(g, room, keep=set(soil))
+    if left:
+        g.log(f"farm room: {len(left)} blocks left undug, e.g. {left[:3]}")
+        return False
     # -- light, soil, water --------------------------------------------------
     g.status = "building the farm"
     for c in corners:
