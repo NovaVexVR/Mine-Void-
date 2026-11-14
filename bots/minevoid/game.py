@@ -41,7 +41,7 @@ BARITONE_SETTINGS = {
     # new tunnels: every tunnel out of the base is a way in for mobs.
     "blockBreakAdditionalPenalty": "6",
     # Never mine base fixtures while pathing (Baritone broke the beds).
-    "blocksToDisallowBreaking": "crafting_table,furnace,chest,torch,wall_torch,farmland,wheat,white_bed,orange_bed,magenta_bed,light_blue_bed,yellow_bed,lime_bed,pink_bed,gray_bed,light_gray_bed,cyan_bed,purple_bed,blue_bed,brown_bed,green_bed,red_bed,black_bed,oak_door,spruce_door,birch_door,jungle_door,acacia_door,dark_oak_door,mangrove_door,cherry_door,pale_oak_door",
+    "blocksToDisallowBreaking": "crafting_table,furnace,chest,torch,wall_torch,farmland,wheat,white_bed,orange_bed,magenta_bed,light_blue_bed,yellow_bed,lime_bed,pink_bed,gray_bed,light_gray_bed,cyan_bed,purple_bed,blue_bed,brown_bed,green_bed,red_bed,black_bed,oak_door,spruce_door,birch_door,jungle_door,acacia_door,dark_oak_door,mangrove_door,cherry_door,pale_oak_door,oak_planks,spruce_planks,birch_planks,jungle_planks,acacia_planks,dark_oak_planks,mangrove_planks,cherry_planks,pale_oak_planks,bamboo_planks",
     "allowBreak": "true",
     "allowPlace": "true",
     "rightClickContainerOnArrival": "true",

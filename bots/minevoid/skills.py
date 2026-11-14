@@ -621,6 +621,17 @@ def fix_base(g, facts):
             g.place_at(item, x + dx, y, z - 2, stand=(x, y, z))
 
 
+def seal_filler(g):
+    """Block to patch the base with: planks first (Baritone may not break
+    them), then the most plentiful stone-like block, dirt last (the farm
+    needs it)."""
+    planks = [s.item for s in m.player_inventory() if short(s.item).endswith("_planks")]
+    if planks:
+        return short(planks[0])
+    return max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0 and i != "dirt",
+                                       g.count(lambda j, i=i: j == i)))
+
+
 FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
            "granite", "tuff", "netherrack")
 CLUTTER = FILLERS + ("gravel", "sand", "stone", "deepslate", "grass_block")
@@ -742,7 +753,8 @@ def seal_base(g, facts):
     tunnels and shafts) so mobs cannot get in at night. Baritone digs a new
     way out in the morning; whoever shelters next seals it again."""
     x, y, z = facts["base"]
-    filler_count = lambda: max(g.count(lambda j, i=i: j == i) for i in FILLERS)
+    filler_count = lambda: max([g.count(lambda j, i=i: j == i) for i in FILLERS]
+                               + [g.count(lambda j: j.endswith("_planks"))])
     # Go there first: from far away the base's chunks are not loaded and it
     # looked sealed (a bot 200 blocks out reported 0 openings).
     if math.dist(g.pos(), (x, y, z)) > 10 and not g.goto(x, y, z, timeout=300, near=1):
@@ -752,6 +764,14 @@ def seal_base(g, facts):
     # Baritone had tunnelled through it in a dozen places, and patching only
     # the holes the flood fill found never caught up.
     farm = bool(facts.get("farm_room"))
+    holes = base_shell(g, (x, y, z), farm)
+    planks = g.count(lambda i: i.endswith("_planks"))
+    if holes and planks < len(holes) and g.count(CLASSES["log"]):
+        # Seal with planks: Baritone never breaks them (they are on its
+        # do-not-break list), so a patched hole cannot be dug open again,
+        # from inside or out.
+        crafting.craft(g, "planks", min(g.count(CLASSES["log"]),
+                                        (len(holes) - planks + 3) // 4))
     for _ in range(3):
         holes = base_shell(g, (x, y, z), farm)
         if not holes or filler_count() == 0:
@@ -761,10 +781,7 @@ def seal_base(g, facts):
                 g.log("not enough blocks to seal the base")
                 break
             g.status = f"rebuilding the base walls ({len(holes) - i} holes)"
-            # (dirt last: the farm needs it)
-            filler = max(FILLERS, key=lambda i: (g.count(lambda j, i=i: j == i) > 0
-                                                 and i != "dirt",
-                                                 g.count(lambda j, i=i: j == i)))
+            filler = seal_filler(g)
             # Work from inside: walking round to a hole from outside took a
             # bot over the surface at nightfall, and a zombie got it.
             # (A temporary helper block next to the hole never worked from
