@@ -109,6 +109,7 @@ class Agent:
     def tick(self):
         g, now = self.g, time.time()
         self.serve_debug()
+        g.base_guard()
         dead = g.health() <= 0
         # Meteor's Auto Respawn is quicker than our ticks, so also notice a
         # death by the player's entity id changing (respawning makes a new one).

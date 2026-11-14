@@ -495,9 +495,11 @@ def build_base(g, facts, depth=8, size=5):
     g.status = "digging base"
     g.b(f"sel 1 {x - r} {floor} {z - r}")
     g.b(f"sel 2 {x + r} {floor + 2} {z + r}")
+    g.dig_ok = True  # digging the base on purpose (see Game.base_guard)
     g.b("sel cleararea")
     g.sleep(3)
     g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 900, 2)
+    g.dig_ok = False
     g.b("sel clear")
     g.stop()
     if not g.goto(x, floor, z, timeout=120, near=1):
@@ -619,8 +621,18 @@ def base_shell(g, base, farm_room=False):
     kinds = m.getblocklist([list(c) for c in shell])
     if any(k is None or "void_air" in k for k in kinds):
         raise ValueError("base not loaded")
-    return [c for c, k in zip(shell, kinds)
-            if short(k) in AIR + ("water", "lava") and "door" not in k]
+    below = m.getblocklist([[c[0], c[1] - 1, c[2]] for c in shell])
+    # The air above the door stays open: stepping down from the stairs
+    # through the doorway needs the head room (Baritone dug it out again).
+    # The block above that head room closes it instead.
+    headroom = [c for c, k, b in zip(shell, kinds, below)
+                if "_door" in (b or "") and "_door" not in (k or "")]
+    caps = [(c[0], c[1] + 1, c[2]) for c in headroom]
+    cap_kinds = m.getblocklist([list(c) for c in caps]) if caps else []
+    holes = [c for c, k in zip(shell, kinds)
+             if short(k) in AIR + ("water", "lava") and "door" not in k
+             and c not in headroom]
+    return holes + [c for c, k in zip(caps, cap_kinds) if short(k) in AIR]
 
 
 def scaffold_place(g, filler, c, base, farm_room):
@@ -665,7 +677,9 @@ def base_openings(g, base, farm_room=False):
     kinds = dict(zip(cells, m.getblocklist([list(c) for c in cells])))
     if any(k is None or "void_air" in k for k in kinds.values()):
         raise ValueError("base not loaded")  # unknown, not "sealed"
-    air = lambda c: short(kinds.get(c)) in AIR
+    # (the head room kept open above the door counts as closed)
+    air = lambda c: short(kinds.get(c)) in AIR and \
+        "_door" not in (kinds.get((c[0], c[1] - 1, c[2])) or "")
     inside = lambda c: all(lo[i] <= c[i] <= hi[i] for i in range(3))
     seen, todo, leaks = {(x, y, z)}, [(x, y, z)], []
     while todo:
@@ -758,9 +772,11 @@ def build_exit(g, facts):
     for cx, stand in columns:
         g.b(f"sel 1 {cx} {stand} {dz}")
         g.b(f"sel 2 {cx} {stand + (1 if cx == x + 3 else 2)} {dz}")
+    g.dig_ok = True  # digging the base on purpose (see Game.base_guard)
     g.b("sel cleararea")
     g.sleep(3)
     g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 600, 2)
+    g.dig_ok = False
     g.b("sel clear")
     g.stop()
     g.goto(x, y, z, timeout=120, near=1)
@@ -1338,9 +1354,11 @@ def build_farm_room(g, facts, plots=20):
         g.b(f"sel 2 {x - 4} {y + 2} {z + 2}")
         g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
         g.b(f"sel 2 {x - 3} {y + 2} {z}")
+        g.dig_ok = True  # digging the base on purpose (see Game.base_guard)
         g.b("sel cleararea")
         g.sleep(3)
         g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 300, 2)
+        g.dig_ok = False
         g.b("sel clear")
         g.stop()
     # Baritone's builder stopped early and left most of the room solid

@@ -238,6 +238,33 @@ class Game:
             self._door = (tuple(base), inside)
         return self._door[1]
 
+    dig_ok = False  # set by skills that dig inside the base on purpose
+
+    def in_rooms(self, pos):
+        """Inside the base rooms (base room, farm room, door), not the stairs."""
+        base = getattr(self, "facts", {}).get("base")
+        if not base:
+            return False
+        x, y, z = base
+        return (x - 9 <= pos[0] < x + 4 and z - 3 <= pos[2] < z + 4
+                and y - 1 <= pos[1] < y + 5)
+
+    def base_guard(self):
+        """Called every tick: no digging while inside the rooms, whatever is
+        moving us (pathing, fighting, a skill). Bots kept breaking the base
+        walls from inside in ways no single fix caught."""
+        now = time.time()
+        if now - getattr(self, "_guard_at", 0) < 1:
+            return
+        self._guard_at = now
+        try:
+            want = self.dig_ok or not self.in_rooms(self.pos())
+            setting = JavaClass("baritone.api.BaritoneAPI").getSettings().allowBreak
+            if bool(setting.value) != want:
+                setting.value = want
+        except Exception:
+            pass
+
     def walk_only(self, x, y, z):
         """Inside the base, Baritone may not dig: it tunnelled through the
         walls to reach spots in the room and the base never stayed sealed.
