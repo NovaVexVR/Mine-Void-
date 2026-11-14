@@ -622,6 +622,12 @@ class Game:
             if self.wait_plain(is_open, 1.5):
                 self._click = None
                 return True
+            if attempt in (0, 2):
+                # On target but nothing opened: the server ignored the
+                # click from a few blocks off, past the beds (the crafting
+                # table opened at once from right beside it).
+                self.goto_near(*pos, radius=1, timeout=20)
+                self.stop()
         self.log(f"could not open {name} at {pos}")
         return False
 
