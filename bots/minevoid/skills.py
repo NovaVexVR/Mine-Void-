@@ -590,6 +590,10 @@ def clear_clutter(g, facts):
                                m.getblocklist([list(c) for c in clutter]))))
     clutter = [c for c in clutter if kinds[c] in CLUTTER
                or kinds[c].endswith(("_planks", "_log", "_wood"))]
+    # the step up to the (raised) door is not clutter
+    inside = g.base_door()
+    if inside and inside[1] > y:
+        clutter = [c for c in clutter if c != (inside[0], y, inside[2])]
     while clutter:
         c = min(clutter, key=lambda c: math.dist(c, g.pos()))
         clutter.remove(c)

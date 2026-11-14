@@ -223,20 +223,25 @@ class Game:
         self.b("stop")
 
     def base_door(self):
-        """The floor cell just inside the base door (cached)."""
+        """The cell to stand in just inside the base door (cached). The door
+        stands on the floor or one block up (it was raised so that leaving
+        is a level step onto the stairs: Baritone will not step up out of
+        a door's block without digging)."""
         base = getattr(self, "facts", {}).get("base")
         if not base:
             return None
-        if getattr(self, "_door", (None,))[0] != tuple(base) or \
-                getattr(self, "_door_block", None) is None:
+        cached = getattr(self, "_door_block", None)
+        if getattr(self, "_door", (None,))[0] != tuple(base) or cached is None or \
+                "_door" not in (m.getblock(*cached) or ""):
             x, y, z = base
-            cells = [[cx, y, cz] for cx in range(x - 4, x + 5) for cz in range(z - 4, z + 5)]
+            cells = [[cx, cy, cz] for cy in (y, y + 1)
+                     for cx in range(x - 4, x + 5) for cz in range(z - 4, z + 5)]
             door = next((c for c, k in zip(cells, m.getblocklist(cells))
-                         if k and "_door" in k), None)
+                         if k and "_door" in k and "half=lower" in k), None)
             inside = None
             self._door_block = tuple(door) if door else None
             if door:
-                inside = min(((door[0] + dx, y, door[2] + dz) for dx, dz in
+                inside = min(((door[0] + dx, door[1], door[2] + dz) for dx, dz in
                               ((1, 0), (-1, 0), (0, 1), (0, -1))),
                              key=lambda c: math.dist(c, base))
             self._door = (tuple(base), inside)
