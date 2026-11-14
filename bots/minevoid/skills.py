@@ -1085,7 +1085,17 @@ def harvest(g, facts, radius=12):
     for c in soil:
         if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
                 g.count(lambda i: i == "dirt"):
+            if g.block(*c) not in AIR + ("water",):
+                # a stray block in the plot (netherrack Baritone dropped)
+                if math.dist(g.pos(), (c[0] + .5, y + .5, c[2] + .5)) > 3.5:
+                    g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
+                    g.stop()
+                g.select(lambda i: i.endswith("_pickaxe"))
+                g.break_block(*c, timeout=6)
             lay_soil(g, c, centre, (x - 8, x - 3), y)
+    if not g.count(lambda i: i.endswith("_hoe")):
+        # no hoe, no farmland: 21 seeds sat unplanted
+        crafting.craft(g, "stone_hoe") or crafting.craft(g, "wooden_hoe")
     planted = 0
     for c in soil:
         above = g.block(c[0], y + 1, c[2])
