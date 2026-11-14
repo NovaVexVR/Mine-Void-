@@ -541,8 +541,13 @@ class Game:
         if not pos:
             self.log(f"no {name} nearby and could not place one")
             return False
-        for _ in range(5):
+        for attempt in range(5):
             if not self.aim(pos):
+                if attempt in (1, 3):
+                    # Something is in the way (the chest beside the furnace,
+                    # from the doorway): step right up to it and try again.
+                    self.goto_near(*pos, radius=1, timeout=20)
+                    self.stop()
                 continue
             m.player_press_use(True)
             time.sleep(0.4)
