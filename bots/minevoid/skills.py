@@ -86,7 +86,7 @@ def light_the_way(g, last):
     return pos or here
 
 
-def gather(g, facts, blocks, item, count, timeout=900):
+def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
     end, misses = time.time() + timeout, 0
@@ -97,6 +97,11 @@ def gather(g, facts, blocks, item, count, timeout=900):
     g.b("set legitMine " + ("true" if blocks in ("iron", "coal") else "false"))
     while g.count(pred) < count:
         if time.time() > end:
+            g.stop()
+            return False
+        if until_dark and (g.is_dusk() or g.is_night()):
+            # an errand for an indoor job: back inside before dark (a
+            # harvester out collecting seeds was killed at nightfall)
             g.stop()
             return False
         come_home(g, facts)
@@ -1002,13 +1007,13 @@ def harvest(g, facts, radius=12):
     missing = [c for c in soil if g.block(*c) not in ("dirt", "farmland", "grass_block")]
     daylight = not g.is_night() and not g.is_dusk()
     if missing and g.count(lambda i: i == "dirt") < len(missing) and daylight:
-        gather(g, facts, "dirt", "dirt", len(missing), timeout=300)
+        gather(g, facts, "dirt", "dirt", len(missing), timeout=300, until_dark=True)
         g.goto(x - 4, y + 1, z, timeout=180, near=1)
     # Seeds for every empty plot (grass drops them), so the farm grows to
     # its full 20 plots instead of replanting only what it harvested.
     empty = [c for c in soil if g.block(c[0], y + 1, c[2]) != "wheat"]
     if len(empty) > g.count(seeds) and daylight:
-        gather(g, facts, "grass", "wheat_seeds", len(empty), timeout=300)
+        gather(g, facts, "grass", "wheat_seeds", len(empty), timeout=300, until_dark=True)
         g.goto(x - 4, y + 1, z, timeout=180, near=1)
     for c in soil:
         if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
