@@ -310,6 +310,35 @@ class Game:
         except Exception:
             pass
 
+    def open_door_if_inside(self):
+        """Standing in the door's own block with the door shut (a bot got
+        stuck there for minutes: Baritone cannot path out of a closed door):
+        open it."""
+        now = time.time()
+        if now - getattr(self, "_unstick_at", 0) < 2:
+            return
+        self._unstick_at = now
+        try:
+            d = getattr(self, "_door_block", None) or (self.base_door() and self._door_block)
+            if not d:
+                return
+            p = self.pos()
+            if (math.floor(p[0]), math.floor(p[2])) != (d[0], d[2]) or \
+                    "open=false" not in (m.getblock(*d) or ""):
+                return
+            for ox, oz, oy in [(a, b, h) for h in (0.5, 1.5)
+                               for a in (0.15, 0.5, 0.85) for b in (0.15, 0.5, 0.85)]:
+                m.player_look_at(d[0] + ox, d[1] + oy, d[2] + oz)
+                time.sleep(0.08)
+                hit = m.player_get_targeted_block(4.5)
+                if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
+                    m.player_press_use(True)
+                    time.sleep(0.1)
+                    m.player_press_use(False)
+                    break
+        except Exception:
+            pass
+
     def walk_only(self, x, y, z):
         """Inside the base, Baritone may not dig: it tunnelled through the
         walls to reach spots in the room and the base never stayed sealed.

@@ -112,6 +112,7 @@ class Agent:
         g.base_guard()
         if not self.task or self.task.get("skill") != "build_exit":
             g.close_door()
+            g.open_door_if_inside()
         dead = g.health() <= 0
         # Meteor's Auto Respawn is quicker than our ticks, so also notice a
         # death by the player's entity id changing (respawning makes a new one).
