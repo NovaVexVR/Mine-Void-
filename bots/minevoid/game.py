@@ -413,9 +413,15 @@ class Game:
                     m.player_press_attack(False)
                     return gone()
                 m.player_press_attack(True)
-                self.sleep(0.2)
+                # Let go the moment it breaks: still holding, the swing went
+                # on into the block behind it (the base ceiling).
+                stop = time.time() + 0.5
+                while time.time() < stop and not gone():
+                    time.sleep(0.03)
                 if gone():
+                    m.player_press_attack(False)
                     return True
+                self.sleep(0.01)
             return gone()
         finally:
             m.player_press_attack(False)

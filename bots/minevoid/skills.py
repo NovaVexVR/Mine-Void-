@@ -640,7 +640,8 @@ def scaffold_place(g, filler, c, base, farm_room):
     put a temporary block in the room cell next to it, place against that,
     then take the temporary block out again."""
     inside = base_interior(base, farm_room)
-    for d in ((1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, -1, 0), (0, 1, 0)):
+    # sideways only: under a ceiling hole the helper hides the face we need
+    for d in ((1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)):
         t = (c[0] + d[0], c[1] + d[1], c[2] + d[2])
         if t not in inside or g.block(*t) not in AIR or t[1] == base[1]:
             continue
