@@ -973,9 +973,15 @@ def harvest(g, facts, radius=12):
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
     # Soil lost to digging or a flood comes back; till and plant every plot.
     missing = [c for c in soil if g.block(*c) not in ("dirt", "farmland", "grass_block")]
-    if missing and g.count(lambda i: i == "dirt") < len(missing) and \
-            not g.is_night() and not g.is_dusk():
+    daylight = not g.is_night() and not g.is_dusk()
+    if missing and g.count(lambda i: i == "dirt") < len(missing) and daylight:
         gather(g, facts, "dirt", "dirt", len(missing), timeout=300)
+        g.goto(x - 4, y + 1, z, timeout=180, near=1)
+    # Seeds for every empty plot (grass drops them), so the farm grows to
+    # its full 20 plots instead of replanting only what it harvested.
+    empty = [c for c in soil if g.block(c[0], y + 1, c[2]) != "wheat"]
+    if len(empty) > g.count(seeds) and daylight:
+        gather(g, facts, "grass", "wheat_seeds", len(empty), timeout=300)
         g.goto(x - 4, y + 1, z, timeout=180, near=1)
     for c in soil:
         if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
