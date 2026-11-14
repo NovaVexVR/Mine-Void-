@@ -656,8 +656,12 @@ class Game:
                     if self.wait_plain(placed, 1.0):
                         return True
             if attempt == 0:
-                self.goto_near(*(stand or (x, y, z)), radius=1 if stand else 2,
-                               timeout=20)
+                if stand:
+                    # the exact spot: one cell off, the bot stood under the
+                    # wrong ceiling block and could not see the hole's sides
+                    self.goto(*stand, timeout=20)
+                else:
+                    self.goto_near(x, y, z, radius=2, timeout=20)
         # Last try: jump and click at the top of the jump. A wall gap at
         # head height has only the top of the block below it to click, and
         # that is above our eyes while standing.
