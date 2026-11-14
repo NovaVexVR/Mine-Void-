@@ -723,9 +723,20 @@ class Game:
                 time.sleep(0.2)
         return fought
 
-    def hostiles(self, radius=5):
+    def hostiles(self, radius=5, visible=True):
+        """Hostile mobs nearby; by default only ones we can see. A zombie
+        on the other side of the base wall made bots dig through the wall
+        to reach it (and hit the wall blocks in between)."""
         out = []
         for e in m.entities(max_distance=radius, sort="nearest"):
-            if e.type.rsplit(".", 1)[-1] in HOSTILES:
-                out.append(e)
+            if e.type.rsplit(".", 1)[-1] not in HOSTILES:
+                continue
+            if visible:
+                try:
+                    je = self.mc.level.getEntity(e.id)
+                    if je is None or not self.mc.player.hasLineOfSight(je):
+                        continue
+                except Exception:
+                    pass
+            out.append(e)
         return out
