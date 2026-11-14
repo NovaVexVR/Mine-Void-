@@ -370,12 +370,26 @@ class Game:
         return self.wait_plain(lambda: self.block(x, y, z) in ("air", "cave_air"), 1.0)
 
     def break_block(self, x, y, z, timeout=15):
+        """Break the block at (x, y, z), but only while the crosshair is on
+        it: holding attack at a cell hidden behind something else broke the
+        base walls instead."""
+        gone = lambda: self.block(x, y, z) in ("air", "cave_air")
+        if gone():
+            return True
         m.player_look_at(x + 0.5, y + 0.5, z + 0.5)
         time.sleep(0.2)
-        m.player_press_attack(True)
+        end = time.time() + timeout
         try:
-            return self.wait(lambda: self.block(x, y, z) in ("air", "cave_air"),
-                             timeout, 0.2)
+            while time.time() < end:
+                hit = m.player_get_targeted_block(4.5)
+                if not hit or list(hit.position) != [x, y, z]:
+                    m.player_press_attack(False)
+                    return gone()
+                m.player_press_attack(True)
+                self.sleep(0.2)
+                if gone():
+                    return True
+            return gone()
         finally:
             m.player_press_attack(False)
 
