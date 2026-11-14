@@ -787,7 +787,12 @@ def seal_base(g, facts):
             # (A temporary helper block next to the hole never worked from
             # inside - the face it offers points away from us - and it hid
             # the hole from view; place_against jumps for head-height gaps.)
-            g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
+            stand = inside_spot((x, y, z), c, facts)
+            if g.block(*stand) not in AIR:
+                # (in the farm room the floor cell is the soil itself:
+                # stand on top of it - the bot never got under the hole)
+                stand = (stand[0], stand[1] + 1, stand[2])
+            g.place_against(filler, *c, stand=stand)
     # (With the shell whole, the flood fill only confirms it.)
     left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")
