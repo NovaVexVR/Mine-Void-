@@ -607,11 +607,13 @@ class Game:
                 continue
             if not self.select(lambda i: i == name):
                 return False
-            for _ in range(2):
+            # (0.15-0.25 s into the jump the top face is in view; later the
+            # crosshair is on the block's side and the check fails)
+            for delay in (0.15, 0.2, 0.25):
                 m.player_press_jump(True)
-                time.sleep(0.25)
+                time.sleep(delay)
                 m.player_look_at(x + 0.5, y + 0.02, z + 0.5)
-                time.sleep(0.05)
+                time.sleep(0.03)
                 hit = m.player_get_targeted_block(4.5)
                 if hit and list(hit.position) == list(n) and hit.side == "up":
                     m.player_press_use(True)
