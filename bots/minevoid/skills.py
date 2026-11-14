@@ -104,6 +104,16 @@ def gather(g, facts, blocks, item, count, timeout=900):
             last_torch = light_the_way(g, last_torch)
             avoid_danger(g, facts)
         base = facts.get("base")
+        if blocks in ("iron", "coal") and base and math.dist(g.pos(), base) < 20:
+            # Ore showing through gaps in the base's walls drew a miner back
+            # to dig into the base from outside: mine elsewhere.
+            g.stop()
+            g.status = "mining away from the base"
+            g.b(f"goto {base[0] + 100} {base[2]}")
+            g.sleep(2)
+            g.wait(lambda: math.dist(g.pos(), base) > 90 or not g.busy(), 240, 1)
+            g.stop()
+        base = facts.get("base")
         if base and blocks not in ("logs", "grass") and math.dist(g.pos(), base) < 24:
             # Do not quarry the base itself (bots mined its roof away).
             g.status = "leaving the base to dig"
