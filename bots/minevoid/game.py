@@ -337,8 +337,23 @@ class Game:
             if not d:
                 return
             p = self.pos()
-            if (math.floor(p[0]), math.floor(p[2])) != (d[0], d[2]) or \
-                    "open=false" not in (m.getblock(*d) or ""):
+            if (math.floor(p[0]), math.floor(p[2])) != (d[0], d[2]):
+                self._in_door_since = None
+                return
+            if getattr(self, "_in_door_since", None) is None:
+                self._in_door_since = now
+            if now - self._in_door_since > 4 and "open=true" in (m.getblock(*d) or ""):
+                # Baritone cannot path out of the door's own block, open or
+                # shut (a harvester stood there until its job failed): step
+                # into the room by hand.
+                base = self.facts["base"]
+                m.player_look_at(base[0] + 0.5, base[1] + 1.6, base[2] + 0.5)
+                m.player_press_forward(True)
+                time.sleep(0.5)
+                m.player_press_forward(False)
+                self._in_door_since = None
+                return
+            if "open=false" not in (m.getblock(*d) or ""):
                 return
             for ox, oz, oy in [(a, b, h) for h in (0.5, 1.5)
                                for a in (0.15, 0.5, 0.85) for b in (0.15, 0.5, 0.85)]:
