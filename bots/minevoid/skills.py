@@ -44,7 +44,7 @@ def avoid_danger(g, facts, radius=28):
     same dark cave. Moving away makes other ore the nearest."""
     here = g.pos()
     spots = [d[:3] for d in facts.get("danger", [])
-             if time.time() - d[3] < 3600 and math.dist(d[:3], here) < radius]
+             if time.time() - d[3] < 43200 and math.dist(d[:3], here) < radius]
     if not spots:
         return False
     d = spots[0]

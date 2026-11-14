@@ -394,7 +394,7 @@ class Coordinator:
                     if p and (p[1] < 55 or ev.endswith("in water")):
                         now = time.time()
                         self.facts["danger"] = [d for d in self.facts.get("danger", [])
-                                                if now - d[3] < 3600][-7:] + [p + [now]]
+                                                if now - d[3] < 43200][-11:] + [p + [now]]
                 if r["event"].endswith(" failed"):
                     self.failed_at[(name, r["event"][:-len(" failed")])] = time.time()
             now = time.time()
