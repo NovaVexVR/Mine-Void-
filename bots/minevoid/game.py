@@ -441,6 +441,10 @@ class Game:
         gone = lambda: self.block(x, y, z) in ("air", "cave_air")
         if gone():
             return True
+        if self.in_rooms(self.pos()):
+            import inspect
+            caller = inspect.stack()[1].function
+            self.log(f"break {self.block(x, y, z)} at {[x, y, z]} for {caller}")
         m.player_look_at(x + 0.5, y + 0.5, z + 0.5)
         time.sleep(0.2)
         end = time.time() + timeout
