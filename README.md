@@ -187,6 +187,16 @@ but the bot died before casting), farm harvests, shearing. Phases after iron
 (diamonds, enchanting, Nether, blaze rods, ender pearls, stronghold, dragon)
 are `todo`.
 
+Base upkeep, learned the hard way: bots enter and leave by the stairs and
+door (Baritone otherwise tunnels through the walls), never dig while moving
+inside the base, only break a block while the crosshair is really on it,
+and sealing rebuilds the whole shell around the rooms from inside
+(ceilings included, jumping for head-height gaps). Deaths are reported at
+the server's death location; underground and water deaths become danger
+spots that miners keep ~130 blocks away from for 12 hours, and there is no
+gear recovery underground. CoreProtect (`co lookup u:Void1 t:1h a:-block`
+in the server console) shows who broke what.
+
 Known problems:
 
 * **Deaths still cost gear.** Skeletons, creepers and Drowned (near water)
