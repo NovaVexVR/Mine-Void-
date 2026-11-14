@@ -120,6 +120,7 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
             tx, tz = max(((base[0] + dx * 100, base[2] + dz * 100) for dx, dz in
                           ((1, 0), (-1, 0), (0, 1), (0, -1))),
                          key=lambda t: min(math.dist(t, (d[0], d[2])) for d in spots))
+            g.via_door(int(tx), base[1] + 10, int(tz))  # out by the door
             g.b(f"goto {int(tx)} {int(tz)}")
             g.sleep(2)
             g.wait(lambda: math.dist(g.pos(), base) > 90 or not g.busy(), 240, 1)

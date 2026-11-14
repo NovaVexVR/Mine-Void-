@@ -260,7 +260,7 @@ class Game:
         moving us (pathing, fighting, a skill). Bots kept breaking the base
         walls from inside in ways no single fix caught."""
         now = time.time()
-        if now - getattr(self, "_guard_at", 0) < 1:
+        if now - getattr(self, "_guard_at", 0) < 0.3:
             return
         self._guard_at = now
         try:
@@ -343,9 +343,9 @@ class Game:
         """Inside the base, Baritone may not dig: it tunnelled through the
         walls to reach spots in the room and the base never stayed sealed.
         Returns whether breaking was turned off (turn it back on after)."""
-        if self.inside_base(self.pos()) and self.inside_base((x + .5, y, z + .5)):
-            self.b("set allowBreak false")
-            return True
+        # (base_guard now keeps digging off in the rooms; switching it back
+        # on here after each move left a window in which Baritone dug a bot
+        # out through the farm room wall)
         return False
 
     def goto(self, x, y, z, timeout=120, near=0):
