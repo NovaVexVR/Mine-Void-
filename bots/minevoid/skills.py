@@ -623,6 +623,25 @@ def base_shell(g, base, farm_room=False):
             if short(k) in AIR + ("water", "lava") and "door" not in k]
 
 
+def scaffold_place(g, filler, c, base, farm_room):
+    """Fill shell cell `c` whose only solid neighbour faces away from us:
+    put a temporary block in the room cell next to it, place against that,
+    then take the temporary block out again."""
+    inside = base_interior(base, farm_room)
+    for d in ((1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, -1, 0), (0, 1, 0)):
+        t = (c[0] + d[0], c[1] + d[1], c[2] + d[2])
+        if t not in inside or g.block(*t) not in AIR or t[1] == base[1]:
+            continue
+        if not g.place_against(filler, *t, stand=(t[0], base[1], t[2])):
+            continue
+        ok = g.place_against(filler, *c, stand=(t[0], base[1], t[2]))
+        g.select(lambda i: i.endswith("_pickaxe"))
+        g.break_block(*t, timeout=6)
+        if ok:
+            return True
+    return False
+
+
 def inside_spot(base, c, facts):
     """A floor cell inside the rooms close to `c`, to place it from."""
     inside = [p for p in base_interior(base, bool(facts.get("farm_room")))
@@ -694,7 +713,8 @@ def seal_base(g, facts):
                                                  g.count(lambda j, i=i: j == i)))
             # Work from inside: walking round to a hole from outside took a
             # bot over the surface at nightfall, and a zombie got it.
-            g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
+            if not g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts)):
+                scaffold_place(g, filler, c, (x, y, z), farm)
     # (With the shell whole, the flood fill only confirms it.)
     left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")
