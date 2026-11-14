@@ -815,7 +815,9 @@ class Game:
         for e in m.entities(max_distance=radius, sort="nearest"):
             if e.type.rsplit(".", 1)[-1] not in HOSTILES:
                 continue
-            if visible:
+            if visible and math.dist(e.position, self.pos()) > 2.5:
+                # (right next to us it counts anyway: a pillager standing in
+                # the closed door's block shot bots while "out of sight")
                 try:
                     je = self.mc.level.getEntity(e.id)
                     if je is None or not self.mc.player.hasLineOfSight(je):
