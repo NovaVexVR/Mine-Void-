@@ -570,7 +570,7 @@ class Game:
         if is_open():
             return True
         self.close_screen()
-        pos = self.find_block(name, 6)
+        pos = self.find_block(name, 10)  # (the farm room is 7+ from the chest)
         if pos and math.dist(pos, self.block_pos()) > 3:
             self.goto_near(*pos, radius=2, timeout=40)
         if not pos:
