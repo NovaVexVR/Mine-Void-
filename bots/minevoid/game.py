@@ -225,7 +225,8 @@ class Game:
         base = getattr(self, "facts", {}).get("base")
         if not base:
             return None
-        if getattr(self, "_door", (None,))[0] != tuple(base):
+        if getattr(self, "_door", (None,))[0] != tuple(base) or \
+                getattr(self, "_door_block", None) is None:
             x, y, z = base
             cells = [[cx, y, cz] for cx in range(x - 4, x + 5) for cz in range(z - 4, z + 5)]
             door = next((c for c, k in zip(cells, m.getblocklist(cells))
@@ -274,25 +275,31 @@ class Game:
             return
         self._door_at = now
         try:
-            if not self.in_rooms(self.pos()) or self.base_door() is None:
-                return
+            if self.base_door() is None:
+                return  # (from either side: also behind a bot that left)
             d = getattr(self, "_door_block", None)
             state = m.getblock(*d) if d else ""
             if "open=true" not in (state or ""):
                 return
-            if math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) < 1.6 or \
+            cell = lambda q: (math.floor(q[0]), math.floor(q[2]))
+            if cell(self.pos()) == (d[0], d[2]) or \
                     math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) > 4:
                 return  # in the doorway, or too far to reach
-            if any(math.dist(p.position, (d[0] + .5, d[1], d[2] + .5)) < 1.6
-                   for p in m.players() if p.name != self.name):
+            if any(cell(p.position) == (d[0], d[2]) for p in m.players()
+                   if p.name != self.name):
                 return  # a teammate is passing through
-            m.player_look_at(d[0] + 0.5, d[1] + 0.5, d[2] + 0.5)
-            time.sleep(0.2)
-            hit = m.player_get_targeted_block(4.5)
-            if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
-                m.player_press_use(True)
-                time.sleep(0.1)
-                m.player_press_use(False)
+            # An open door is a thin panel on one edge of its cell: try
+            # points across the cell until the crosshair lands on it.
+            for ox, oz, oy in [(a, b, h) for h in (0.5, 1.5)
+                               for a in (0.15, 0.5, 0.85) for b in (0.15, 0.5, 0.85)]:
+                m.player_look_at(d[0] + ox, d[1] + oy, d[2] + oz)
+                time.sleep(0.08)
+                hit = m.player_get_targeted_block(4.5)
+                if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
+                    m.player_press_use(True)
+                    time.sleep(0.1)
+                    m.player_press_use(False)
+                    break
         except Exception:
             pass
 
