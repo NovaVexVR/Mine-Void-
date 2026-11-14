@@ -208,6 +208,12 @@ class Agent:
                 if "base" in self.facts and 60 < math.dist(g.pos(), self.facts["base"]) < 2 * skills.LEASH \
                         and g.head_home(math.dist(g.pos(), self.facts["base"])):
                     raise game.TaskChanged("dusk")
+                if g.hunger() <= 6 and not g.count(items.CLASSES["food"]) \
+                        and self.task.get("skill") not in ("hunt", "fish", "harvest") \
+                        and not g.is_night():
+                    # Starving mid-task (a long mining trip): stop and eat
+                    # first; the emergency hunt starts at the next step.
+                    raise game.TaskChanged("hungry")
                 if g.is_night() and (self.task.get("surface")
                                      or ("base" in self.facts
                                          and not self.task.get("at_base"))):
