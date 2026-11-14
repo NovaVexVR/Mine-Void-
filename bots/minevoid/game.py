@@ -250,8 +250,10 @@ class Game:
         if not base:
             return False
         x, y, z = base
-        return (x - 9 <= pos[0] < x + 4 and z - 3 <= pos[2] < z + 4
-                and y - 1 <= pos[1] < y + 5)
+        # (one block beyond the walls and up into the cave above the base:
+        # a bot passing through that cave dug down through the ceiling)
+        return (x - 10 <= pos[0] < x + 4 and z - 4 <= pos[2] < z + 5
+                and y - 1 <= pos[1] < y + 8)
 
     def base_guard(self):
         """Called every tick: no digging while inside the rooms, whatever is
