@@ -231,6 +231,7 @@ class Game:
             door = next((c for c, k in zip(cells, m.getblocklist(cells))
                          if k and "_door" in k), None)
             inside = None
+            self._door_block = tuple(door) if door else None
             if door:
                 inside = min(((door[0] + dx, y, door[2] + dz) for dx, dz in
                               ((1, 0), (-1, 0), (0, 1), (0, -1))),
@@ -262,6 +263,36 @@ class Game:
             setting = JavaClass("baritone.api.BaritoneAPI").getSettings().allowBreak
             if bool(setting.value) != want:
                 setting.value = want
+        except Exception:
+            pass
+
+    def close_door(self):
+        """Close the base door behind us: Baritone opens it to walk through
+        and leaves it open, and a zombie walked in and killed a bot."""
+        now = time.time()
+        if now - getattr(self, "_door_at", 0) < 3:
+            return
+        self._door_at = now
+        try:
+            if not self.in_rooms(self.pos()) or self.base_door() is None:
+                return
+            d = getattr(self, "_door_block", None)
+            state = m.getblock(*d) if d else ""
+            if "open=true" not in (state or ""):
+                return
+            if math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) < 1.6 or \
+                    math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) > 4:
+                return  # in the doorway, or too far to reach
+            if any(math.dist(p.position, (d[0] + .5, d[1], d[2] + .5)) < 1.6
+                   for p in m.players() if p.name != self.name):
+                return  # a teammate is passing through
+            m.player_look_at(d[0] + 0.5, d[1] + 0.5, d[2] + 0.5)
+            time.sleep(0.2)
+            hit = m.player_get_targeted_block(4.5)
+            if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
+                m.player_press_use(True)
+                time.sleep(0.1)
+                m.player_press_use(False)
         except Exception:
             pass
 

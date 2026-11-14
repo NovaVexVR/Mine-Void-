@@ -110,6 +110,8 @@ class Agent:
         g, now = self.g, time.time()
         self.serve_debug()
         g.base_guard()
+        if not self.task or self.task.get("skill") != "build_exit":
+            g.close_door()
         dead = g.health() <= 0
         # Meteor's Auto Respawn is quicker than our ticks, so also notice a
         # death by the player's entity id changing (respawning makes a new one).
@@ -138,11 +140,18 @@ class Agent:
                     pos = [bp.getX(), bp.getY(), bp.getZ()]
             except Exception:
                 pass
+            prev = getattr(self, "last_death_at", 0)
+            self.last_death_at = time.time()
             self.death = (pos, time.time())
             in_water = pos and g.block(*pos) in ("water", "bubble_column")
             self.report(event=f"died at {pos}" + (" in water" if in_water else ""))
             underground = pos and pos[1] < 55
-            if (self.task or {}).get("skill") == "recover" or in_water or underground:
+            chain = time.time() - prev < 300
+            if (self.task or {}).get("skill") == "recover" or in_water or underground \
+                    or chain:
+                # (A second death within minutes: going back unarmed to
+                # where the mob waits only repeats it; Void2 died three times
+                # at the top of the base stairs that way.)
                 # (Underground the mob that killed us is still there, and we
                 # come back with nothing: Void2 died twice at one spot.)
                 # Died getting our gear back, or under water (drowned mobs,
