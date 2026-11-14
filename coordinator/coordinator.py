@@ -296,9 +296,14 @@ class Coordinator:
                                report.get("night", False))
         if urgent:
             return None  # helping/supplying a teammate comes first
+        current = next((t for p in self.goal["phases"] for t in p["tasks"]
+                        if t["id"] == task["id"]), {})
         for p in self.goal["phases"]:
             for t in p["tasks"]:
+                # (an urgent job is not interrupted by another urgent job:
+                # two smelting jobs kept cutting each other off)
                 if t.get("preempt") and t["id"] != task["id"] \
+                        and not current.get("preempt") \
                         and not self.satisfied(t, name, inv) \
                         and self.kit_task(dict(t), inv) is not None:
                     return None  # something more important came up

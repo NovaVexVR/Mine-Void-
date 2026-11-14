@@ -330,6 +330,7 @@ def withdraw(g, facts, item, n):
             time.sleep(0.2)
     contents = chest_contents(g)
     g.close_screen()
+    g.pending_facts["storage"] = contents  # (a stale record kept re-sending bots)
     return contents
 
 
