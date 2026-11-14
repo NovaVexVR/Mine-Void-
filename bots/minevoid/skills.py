@@ -167,7 +167,18 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
             stuck += 1
             g.log(f"gather stuck ({stuck}), restarting baritone")
             g.stop()
-            if stuck >= 2:
+            if stuck >= 2 and blocks == "stone":
+                # Stone Baritone keeps failing to reach (a bot gathered 46
+                # dirt and no stone in 20 minutes): dig down and tunnel -
+                # every block that way is stone.
+                x, y, z = g.block_pos()
+                g.status = "digging down for stone"
+                g.goto(x, max(y - 10, 20), z, timeout=60)
+                g.status = "tunnelling for stone"
+                g.b("tunnel")
+                g.sleep(25)
+                g.stop()
+            elif stuck >= 2:
                 # Same spot keeps failing (often a cramped corner Baritone
                 # cannot path out of): go somewhere else first.
                 x, y, z = g.block_pos()
