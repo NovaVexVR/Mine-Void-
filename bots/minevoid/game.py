@@ -10,8 +10,10 @@ import time
 import minescript as m
 from java import JavaClass
 
+# (no enderman: neutral until provoked, and picking a fight with one
+# killed a hurt miner)
 HOSTILES = ("zombie", "skeleton", "spider", "creeper", "drowned", "husk", "stray",
-            "witch", "slime", "phantom", "pillager", "vindicator", "enderman",
+            "witch", "slime", "phantom", "pillager", "vindicator",
             "cave_spider", "silverfish", "zombie_villager", "bogged", "blaze",
             "wither_skeleton", "piglin_brute", "hoglin", "magma_cube", "ghast")
 BLOCK_GROUPS = {
