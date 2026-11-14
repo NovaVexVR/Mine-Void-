@@ -955,6 +955,7 @@ def harvest(g, facts, radius=12):
     g.status = "harvesting the farm"
     if not g.goto(x - 4, y + 1, z, timeout=180, near=1):
         if not g.goto(*base, timeout=180, near=1):
+            g.log(f"harvest: could not get to the farm (at {g.block_pos()})")
             return False
     seeds = lambda i: i == "wheat_seeds"
     ripe = [c for c in soil if (m.getblock(c[0], y + 1, c[2]) or "").startswith(
