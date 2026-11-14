@@ -587,7 +587,8 @@ def clear_clutter(g, facts):
                     for cz in range(z - 2, z + 3) for py in (y + 1, y + 2)]
     kinds = dict(zip(clutter, (short(k) for k in
                                m.getblocklist([list(c) for c in clutter]))))
-    clutter = [c for c in clutter if kinds[c] in CLUTTER]
+    clutter = [c for c in clutter if kinds[c] in CLUTTER
+               or kinds[c].endswith(("_planks", "_log", "_wood"))]
     while clutter:
         c = min(clutter, key=lambda c: math.dist(c, g.pos()))
         clutter.remove(c)

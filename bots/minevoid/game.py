@@ -277,6 +277,13 @@ class Game:
         except Exception:
             pass
 
+    def safe_hand(self):
+        """Hold something that does nothing when right-clicking a door: a
+        bot closing the door with a water bucket in hand flooded the base,
+        and with planks or a log it built clutter beside the door."""
+        return self.select(lambda i: i.endswith("_sword")) or \
+            self.select(lambda i: i.endswith("_pickaxe"))
+
     def close_door(self):
         """Close the base door behind us: Baritone opens it to walk through
         and leaves it open, and a zombie walked in and killed a bot."""
@@ -306,6 +313,10 @@ class Game:
                 time.sleep(0.08)
                 hit = m.player_get_targeted_block(4.5)
                 if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
+                    if not self.safe_hand():
+                        break  # nothing harmless to hold: leave the door
+                    m.player_look_at(d[0] + ox, d[1] + oy, d[2] + oz)
+                    time.sleep(0.05)
                     m.player_press_use(True)
                     time.sleep(0.1)
                     m.player_press_use(False)
@@ -335,6 +346,10 @@ class Game:
                 time.sleep(0.08)
                 hit = m.player_get_targeted_block(4.5)
                 if hit and list(hit.position) in (list(d), [d[0], d[1] + 1, d[2]]):
+                    if not self.safe_hand():
+                        break  # nothing harmless to hold: leave the door
+                    m.player_look_at(d[0] + ox, d[1] + oy, d[2] + oz)
+                    time.sleep(0.05)
                     m.player_press_use(True)
                     time.sleep(0.1)
                     m.player_press_use(False)
