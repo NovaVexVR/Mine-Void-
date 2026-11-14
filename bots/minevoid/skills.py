@@ -1386,8 +1386,11 @@ def pour_into_hole(g, centre, y):
     soil next to it, looking straight down, and only with the crosshair
     really on the hole's floor (from floor level the soil was in the way,
     and an unchecked pour flooded the base)."""
+    # (two rounds: clearing a block out of the hole can take a spot or two)
     for st in [(centre[0] + dx, y + 1, centre[2] + dz)
-               for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0))]:
+               for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0))] * 2:
+        if g.block(*centre) == "water":
+            break
         g.goto(*st, timeout=20)
         g.stop()
         if g.block(*centre) not in AIR + ("water",):
