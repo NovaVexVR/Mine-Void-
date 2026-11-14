@@ -268,9 +268,12 @@ class Game:
             settings = JavaClass("baritone.api.BaritoneAPI").getSettings()
             # (no placing either: Baritone dropped dirt into the farm's
             # water hole to walk across it, and the crops dried out)
-            for setting in (settings.allowBreak, settings.allowPlace):
+            # (assigning setting.value from Python never reached Java: the
+            # guard did nothing for hours. Baritone's own command works.)
+            for name, setting in (("allowBreak", settings.allowBreak),
+                                  ("allowPlace", settings.allowPlace)):
                 if bool(setting.value) != want:
-                    setting.value = want
+                    self.b(f"set {name} {'true' if want else 'false'}")
         except Exception:
             pass
 
