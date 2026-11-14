@@ -998,9 +998,12 @@ def harvest(g, facts, radius=12):
             g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
             g.stop()
         m.player_look_at(c[0] + 0.5, y + 1.25, c[2] + 0.5)
-        g.sleep(0.25)
+        time.sleep(0.25)
+        hit = m.player_get_targeted_block(4.5)
+        if not hit or list(hit.position) != [c[0], y + 1, c[2]]:
+            continue  # not on the wheat: never swing at the soil or walls
         m.player_press_attack(True)
-        g.sleep(0.15)
+        time.sleep(0.15)  # (no background tick while attack is held)
         m.player_press_attack(False)
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
     # Soil lost to digging or a flood comes back; till and plant every plot.

@@ -448,22 +448,21 @@ class Game:
         m.player_look_at(x + 0.5, y + 0.5, z + 0.5)
         time.sleep(0.2)
         end = time.time() + timeout
+        on_target = lambda: (lambda h: h is not None and list(h.position) == [x, y, z])(
+            m.player_get_targeted_block(4.5))
+        if not on_target():
+            return False
+        # Hold attack only with plain sleeps: the background tick (fighting,
+        # eating, closing the door) turns the camera, and with attack still
+        # held that mined whatever the crosshair swept over - the base walls.
+        m.player_press_attack(True)
         try:
             while time.time() < end:
-                hit = m.player_get_targeted_block(4.5)
-                if not hit or list(hit.position) != [x, y, z]:
-                    m.player_press_attack(False)
-                    return gone()
-                m.player_press_attack(True)
-                # Let go the moment it breaks: still holding, the swing went
-                # on into the block behind it (the base ceiling).
-                stop = time.time() + 0.5
-                while time.time() < stop and not gone():
-                    time.sleep(0.03)
+                time.sleep(0.05)
                 if gone():
-                    m.player_press_attack(False)
                     return True
-                self.sleep(0.01)
+                if not on_target():
+                    return False
             return gone()
         finally:
             m.player_press_attack(False)
