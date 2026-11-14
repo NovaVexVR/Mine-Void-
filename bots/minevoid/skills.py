@@ -647,6 +647,13 @@ def base_shell(g, base, farm_room=False):
     holes = [c for c, k in zip(shell, kinds)
              if short(k) in AIR + ("water", "lava") and "door" not in k
              and c not in headroom]
+    # An air pocket walled in on all six sides leaks nowhere (and has no
+    # face to click): leave it.
+    def open_side(c):
+        nb = [[c[0] + d[0], c[1] + d[1], c[2] + d[2]] for d in
+              ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+        return any(short(k) in AIR + ("water", "lava") for k in m.getblocklist(nb))
+    holes = [c for c in holes if open_side(c)]
     return holes + [c for c, k in zip(caps, cap_kinds) if short(k) in AIR]
 
 
@@ -743,8 +750,10 @@ def seal_base(g, facts):
                                                  g.count(lambda j, i=i: j == i)))
             # Work from inside: walking round to a hole from outside took a
             # bot over the surface at nightfall, and a zombie got it.
-            if not g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts)):
-                scaffold_place(g, filler, c, (x, y, z), farm)
+            # (A temporary helper block next to the hole never worked from
+            # inside - the face it offers points away from us - and it hid
+            # the hole from view; place_against jumps for head-height gaps.)
+            g.place_against(filler, *c, stand=inside_spot((x, y, z), c, facts))
     # (With the shell whole, the flood fill only confirms it.)
     left = base_openings(g, (x, y, z), bool(facts.get("farm_room")))
     g.log(f"base sealing: {len(left)} openings left")
