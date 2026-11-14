@@ -647,12 +647,22 @@ class Game:
         return bool(cond())
 
     def attack(self, entity):
+        """Hit `entity`, but only with it under the crosshair: swinging at a
+        zombie seen through a gap in the base wall hit the wall instead and
+        widened the gap block by block."""
         x, y, z = entity.position
         m.player_look_at(x, y + 0.6, z)
         time.sleep(0.1)
+        try:
+            target = m.player_get_targeted_entity(4.5)
+        except Exception:
+            target = None
+        if target is None or target.id != entity.id:
+            return False
         m.player_press_attack(True)
         time.sleep(0.1)
         m.player_press_attack(False)
+        return True
 
     def use_on_entity(self, entity, height=0.7):
         """Right-click an entity (shear, feed, breed). Vanilla/Grim reach
