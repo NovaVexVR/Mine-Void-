@@ -683,6 +683,14 @@ def base_shell(g, base, farm_room=False):
               ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
         return any(short(k) in AIR + ("water", "lava") for k in m.getblocklist(nb))
     holes = [c for c in holes if open_side(c)]
+    # Only gaps the rooms' air reaches: one behind the crafting table is
+    # shut off by the table (and cannot be clicked from inside anyway).
+    def touches_room(c):
+        nb = [(c[0] + d[0], c[1] + d[1], c[2] + d[2]) for d in
+              ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+        nb = [p for p in nb if p in inside]
+        return any(short(k) in AIR for k in m.getblocklist([list(p) for p in nb])) if nb else False
+    holes = [c for c in holes if touches_room(c) or c in caps]
     return holes + [c for c, k in zip(caps, cap_kinds) if short(k) in AIR]
 
 
