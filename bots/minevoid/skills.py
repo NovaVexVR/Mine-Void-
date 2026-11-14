@@ -1032,6 +1032,13 @@ def harvest(g, facts, radius=12):
         time.sleep(0.15)  # (no background tick while attack is held)
         m.player_press_attack(False)
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
+    if g.block(*centre) != "water":
+        # without it the farmland dries out and the crops pop off
+        if g.count(lambda i: i == "water_bucket") and pour_into_hole(g, centre, y):
+            g.log("harvest: poured the farm's water back")
+        else:
+            g.log("harvest: the farm has no water")
+            g.pending_facts["farm_dry"] = True
     # Soil lost to digging or a flood comes back; till and plant every plot.
     missing = [c for c in soil if g.block(*c) not in ("dirt", "farmland", "grass_block")]
     daylight = not g.is_night() and not g.is_dusk()
@@ -1343,6 +1350,53 @@ def dig_out(g, cells, tries=2, keep=()):
             and not (c in keep and g.block(*c) in ("dirt", "farmland"))]
 
 
+def pour_into_hole(g, centre, y):
+    """Pour the water bucket into the farm's centre hole: from on top of the
+    soil next to it, looking straight down, and only with the crosshair
+    really on the hole's floor (from floor level the soil was in the way,
+    and an unchecked pour flooded the base)."""
+    for st in [(centre[0] + dx, y + 1, centre[2] + dz)
+               for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0))]:
+        g.goto(*st, timeout=20)
+        g.stop()
+        if g.block(*centre) not in AIR + ("water",):
+            g.select(lambda i: i.endswith("_pickaxe") or i.endswith("_shovel"))
+            g.break_block(*centre, timeout=6)
+        if g.block(centre[0], y - 1, centre[2]) in AIR:
+            g.place_against("dirt", centre[0], y - 1, centre[2])  # a floor
+        m.player_look_at(centre[0] + 0.5, y - 0.01, centre[2] + 0.5)
+        g.sleep(0.4)
+        hit = m.player_get_targeted_block(4.5)
+        if hit and list(hit.position) == [centre[0], y - 1, centre[2]] \
+                and hit.side == "up":
+            g.select(lambda i: i == "water_bucket")
+            g.use_on(centre[0] + 0.5, y - 0.01, centre[2] + 0.5, hold=0.2)
+            break
+    return g.block(*centre) == "water"
+
+
+def water_farm(g, facts):
+    """The farm's water is gone (Baritone dropped a block into the hole to
+    walk across): get a bucket of water and pour it back."""
+    x, y, z = facts["base"]
+    centre, corners, soil = farm_room_cells((x, y, z))
+    if g.block(*centre) == "water":
+        return {"farm_dry": False}
+    if not g.count(lambda i: i == "water_bucket"):
+        if g.is_night() or g.is_dusk():
+            return False
+        if not fill_bucket(g, facts):
+            g.log("farm: no water to bring back")
+            return False
+    if not g.goto(x - 4, y + 1, z, timeout=300, near=1):
+        return False
+    if not pour_into_hole(g, centre, y):
+        g.log("farm: could not pour the water back")
+        return False
+    g.log("farm: water is back")
+    return {"farm_dry": False}
+
+
 def build_farm_room(g, facts, plots=20):
     """An underground wheat farm inside the base: a 5x5 room off the west
     wall, soil carried in (the base is solid stone), torches in the
@@ -1447,28 +1501,7 @@ def build_farm_room(g, facts, plots=20):
         if not all(g.block(*c) in ("dirt", "farmland") for c in ring):
             g.log("farm room: soil around the water cell is incomplete")
             return False
-        # Pour from on top of the soil next to the hole, looking straight
-        # down: from floor level the laid soil was in the way and the water
-        # went into the next cell over.
-        # Only pour once the crosshair is really on the hole's floor: an
-        # unchecked pour landed on top of the soil and flooded the base.
-        for st in [(centre[0] + dx, y + 1, centre[2] + dz)
-                   for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0))]:
-            g.goto(*st, timeout=20)
-            g.stop()
-            if g.block(*centre) not in AIR:
-                g.select(lambda i: i.endswith("_pickaxe") or i.endswith("_shovel"))
-                g.break_block(*centre, timeout=6)
-            if g.block(centre[0], y - 1, centre[2]) in AIR:
-                g.place_against("dirt", centre[0], y - 1, centre[2])  # a floor
-            m.player_look_at(centre[0] + 0.5, y - 0.01, centre[2] + 0.5)
-            g.sleep(0.4)
-            hit = m.player_get_targeted_block(4.5)
-            if hit and list(hit.position) == [centre[0], y - 1, centre[2]] \
-                    and hit.side == "up":
-                g.select(lambda i: i == "water_bucket")
-                g.use_on(centre[0] + 0.5, y - 0.01, centre[2] + 0.5, hold=0.2)
-                break
+        pour_into_hole(g, centre, y)
         if g.block(*centre) != "water":
             g.log("farm room: could not pour the water")
             return False
@@ -1654,4 +1687,5 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "store": store, "craft_from_storage": craft_from_storage,
           "smelt_storage": smelt_storage, "fetch_water": fetch_water,
           "build_farm_room": build_farm_room,
+    "water_farm": water_farm,
           "harvest": harvest}

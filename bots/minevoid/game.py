@@ -263,9 +263,12 @@ class Game:
         self._guard_at = now
         try:
             want = self.dig_ok or not self.in_rooms(self.pos())
-            setting = JavaClass("baritone.api.BaritoneAPI").getSettings().allowBreak
-            if bool(setting.value) != want:
-                setting.value = want
+            settings = JavaClass("baritone.api.BaritoneAPI").getSettings()
+            # (no placing either: Baritone dropped dirt into the farm's
+            # water hole to walk across it, and the crops dried out)
+            for setting in (settings.allowBreak, settings.allowPlace):
+                if bool(setting.value) != want:
+                    setting.value = want
         except Exception:
             pass
 
