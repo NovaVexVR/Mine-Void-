@@ -972,6 +972,11 @@ def harvest(g, facts, radius=12):
         m.player_press_attack(False)
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
     # Soil lost to digging or a flood comes back; till and plant every plot.
+    missing = [c for c in soil if g.block(*c) not in ("dirt", "farmland", "grass_block")]
+    if missing and g.count(lambda i: i == "dirt") < len(missing) and \
+            not g.is_night() and not g.is_dusk():
+        gather(g, facts, "dirt", "dirt", len(missing), timeout=300)
+        g.goto(x - 4, y + 1, z, timeout=180, near=1)
     for c in soil:
         if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
                 g.count(lambda i: i == "dirt"):
