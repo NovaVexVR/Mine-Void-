@@ -203,20 +203,40 @@ class Game:
         exit_ = getattr(self, "facts", {}).get("base_exit")
         if not exit_ or self.inside_base(self.pos()) == self.inside_base((x + .5, y, z + .5)):
             return
-        if math.dist(self.pos(), exit_) > 48 and not self.inside_base(self.pos()):
-            # far out: walk normally to the top of the stairs first
+        if math.dist(self.pos(), exit_) > 3 and not self.inside_base(self.pos()):
+            # coming in: the top of the stairs first, then down them
             self.b(f"goto {exit_[0]} {exit_[1]} {exit_[2]}")
             self.sleep(1)
             self.wait(lambda: math.dist(self.pos(), exit_) < 3 or not self.busy(), 300)
-        self.b("set allowBreak false")
-        try:
-            target = exit_ if self.inside_base(self.pos()) else (x, y, z)
-            self.b(f"goto {target[0]} {target[1]} {target[2]}")
-            self.sleep(1)
-            self.wait(lambda: math.dist(self.pos(), target) < 3 or not self.busy(), 120)
-        finally:
-            self.b("stop")
-            self.b("set allowBreak true")
+        # Through the door itself: aim for the floor just inside (or the top
+        # of the stairs on the way out), so walking through the doorway is
+        # Baritone's cheapest route. (With digging off it would not step down
+        # through the door at all and bots were locked out.)
+        door = self.base_door()
+        going_out = self.inside_base(self.pos())
+        target = exit_ if going_out or not door else door
+        self.b(f"goto {target[0]} {target[1]} {target[2]}")
+        self.sleep(1)
+        self.wait(lambda: math.dist(self.pos(), target) < 2 or not self.busy(), 120)
+        self.b("stop")
+
+    def base_door(self):
+        """The floor cell just inside the base door (cached)."""
+        base = getattr(self, "facts", {}).get("base")
+        if not base:
+            return None
+        if getattr(self, "_door", (None,))[0] != tuple(base):
+            x, y, z = base
+            cells = [[cx, y, cz] for cx in range(x - 4, x + 5) for cz in range(z - 4, z + 5)]
+            door = next((c for c, k in zip(cells, m.getblocklist(cells))
+                         if k and "_door" in k), None)
+            inside = None
+            if door:
+                inside = min(((door[0] + dx, y, door[2] + dz) for dx, dz in
+                              ((1, 0), (-1, 0), (0, 1), (0, -1))),
+                             key=lambda c: math.dist(c, base))
+            self._door = (tuple(base), inside)
+        return self._door[1]
 
     def walk_only(self, x, y, z):
         """Inside the base, Baritone may not dig: it tunnelled through the
