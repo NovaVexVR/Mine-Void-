@@ -510,6 +510,29 @@ class Game:
             if attempt == 0:
                 self.goto_near(*(stand or (x, y, z)), radius=1 if stand else 2,
                                timeout=20)
+        # Last try: jump and click at the top of the jump. A wall gap at
+        # head height has only the top of the block below it to click, and
+        # that is above our eyes while standing.
+        for (dx, dy, dz), side in self.FACES.items():
+            n = (x + dx, y + dy, z + dz)
+            if side != "up" or self.block(*n) in self.SOFT:
+                continue
+            if not self.select(lambda i: i == name):
+                return False
+            for _ in range(2):
+                m.player_press_jump(True)
+                time.sleep(0.25)
+                m.player_look_at(x + 0.5, y + 0.02, z + 0.5)
+                time.sleep(0.05)
+                hit = m.player_get_targeted_block(4.5)
+                if hit and list(hit.position) == list(n) and hit.side == "up":
+                    m.player_press_use(True)
+                    time.sleep(0.1)
+                    m.player_press_use(False)
+                m.player_press_jump(False)
+                time.sleep(0.6)
+                if placed():
+                    return True
         return False
 
     def equip_offhand(self, name):
