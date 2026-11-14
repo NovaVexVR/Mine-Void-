@@ -298,6 +298,15 @@ class Agent:
         elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
             task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3, "fed": 16},
                     "surface": True}
+        exit_ = self.facts.get("base_exit")
+        if exit_ and not task.get("at_base") and task["skill"] not in (
+                "shelter", "dig_in", "seal_base", "build_exit", "build_farm_room") \
+                and g.in_rooms(g.pos()):
+            # Out by the door first: with digging off inside the base,
+            # Baritone could neither mine nor explore from in there and the
+            # whole team sat "exploring for logs" for half an hour.
+            g.status = "leaving the base"
+            g.via_door(*exit_)
         self.task = task
         g.status = task["id"]
         self.interruptible = True
