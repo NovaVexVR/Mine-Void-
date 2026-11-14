@@ -114,7 +114,13 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
             # to dig into the base from outside: mine elsewhere.
             g.stop()
             g.status = "mining away from the base"
-            g.b(f"goto {base[0] + 100} {base[2]}")
+            # the way that keeps furthest from teammates' recent deaths (due
+            # east led straight into the cave that killed four bots)
+            spots = [d[:3] for d in facts.get("danger", [])] or [[base[0], 0, base[2] + 1000]]
+            tx, tz = max(((base[0] + dx * 100, base[2] + dz * 100) for dx, dz in
+                          ((1, 0), (-1, 0), (0, 1), (0, -1))),
+                         key=lambda t: min(math.dist(t, (d[0], d[2])) for d in spots))
+            g.b(f"goto {int(tx)} {int(tz)}")
             g.sleep(2)
             g.wait(lambda: math.dist(g.pos(), base) > 90 or not g.busy(), 240, 1)
             g.stop()
