@@ -505,6 +505,22 @@ class Game:
                     pos = self.find_block(name)
                     if pos:
                         return pos
+        # Walled in (the night dig-in hole is 1x1): dig out a spot beside
+        # us at foot level and put it there. Never in the base: its walls.
+        if self.in_rooms(self.pos()):
+            return None
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            x, z = px + dx, pz + dz
+            if self.block(x, py, z) in bad_floor or self.block(x, py - 1, z) in bad_floor:
+                continue
+            self.select(lambda i: i.endswith("_pickaxe"))
+            if not self.break_block(x, py, z, timeout=8):
+                continue
+            if self.block(x, py, z) in soft and self.select(lambda i: i == name):
+                self.use_on(x + 0.5, py - 0.05, z + 0.5)
+                pos = self.find_block(name)
+                if pos:
+                    return pos
         return None
 
     def open_block(self, name, screen):
