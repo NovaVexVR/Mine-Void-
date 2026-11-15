@@ -965,14 +965,14 @@ class Game:
             elif armed and d <= radius:
                 # Close in: standing still lets archers shoot us to death
                 # (that is how bots died inside their own base).
-                if foes[0].type.endswith(("skeleton", "stray", "bogged")):
+                if foes[0].type.endswith(("skeleton", "stray", "bogged", "pillager")):
                     self.block_with_shield(foes[0], 0.5)
                 x, y, z = foes[0].position
                 self.b("resume")  # the caller may have paused Baritone
                 self.goto_near(math.floor(x), math.floor(y), math.floor(z),
                                radius=1, timeout=3)
                 self.b("pause")
-            elif foes[0].type.endswith(("skeleton", "stray", "bogged")):
+            elif foes[0].type.endswith(("skeleton", "stray", "bogged", "pillager")):
                 self.block_with_shield(foes[0], 0.8) or time.sleep(0.2)
             else:
                 time.sleep(0.2)
