@@ -971,6 +971,10 @@ class Game:
                 self.block_with_shield(foes[0], 0.8) or time.sleep(0.2)
             else:
                 time.sleep(0.2)
+        if fought:
+            # (Closing in re-pauses Baritone; called from a skill rather
+            # than the tick nothing resumed it, and the builder sat frozen.)
+            self.b("resume")
         return fought
 
     def hostiles(self, radius=5, visible=True):

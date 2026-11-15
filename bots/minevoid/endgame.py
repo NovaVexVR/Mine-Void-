@@ -267,8 +267,10 @@ def build_portal(g, facts):
         if not crafting.craft(g, "flint_and_steel"):
             g.log("portal: no flint and steel")
             return False
-    if has(g, "cobblestone") < 8:
-        gather(g, facts, "stone", "cobblestone", 16, timeout=400)
+    if has(g, "cobblestone") < 24:
+        # 4 corners, the rest scaffolding: the builder towers up on cobble
+        # to reach the top row (a test ran out at 20)
+        gather(g, facts, "stone", "cobblestone", 32, timeout=600)
     ex, ey, ez = facts["base_exit"]
     g.status = "choosing a spot for the nether portal"
     if not g.goto(ex, ey, ez, timeout=300, near=2):
@@ -301,6 +303,17 @@ def build_portal(g, facts):
     frame = [(x, y0, z0) for x in (x0 + 1, x0 + 2)] + \
         [(x, y, z0) for x in (x0, x0 + 3) for y in range(y0 + 1, y0 + 4)] + \
         [(x, y0 + 4, z0) for x in (x0 + 1, x0 + 2)]
+    missing = [c for c in frame if g.block(*c) != "obsidian"]
+    if missing:
+        g.b("sel clear")
+        for c in missing:
+            g.b(f"sel 1 {c[0]} {c[1]} {c[2]}")
+            g.b(f"sel 2 {c[0]} {c[1]} {c[2]}")
+        g.b("sel set obsidian")
+        g.sleep(3)
+        g.wait(lambda: not g.baritone.getBuilderProcess().isActive(), 200, 2)
+        g.b("sel clear")
+        g.stop()
     missing = [c for c in frame if g.block(*c) != "obsidian"]
     for c in missing:
         # the builder stopped early: place what is left by hand
