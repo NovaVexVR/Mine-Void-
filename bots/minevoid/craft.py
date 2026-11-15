@@ -112,6 +112,11 @@ def clear_grid(g):
 _book = {}  # item -> recipe display ids, from the client's recipe book
 
 
+def _display_id():
+    from java import JavaClass
+    return JavaClass("net.minecraft.world.item.crafting.display.RecipeDisplayId")
+
+
 def book_ids(g, item):
     """Recipe-book entries whose result is `item` (cached per session)."""
     # Built once, refreshed every 10 minutes (new recipes unlock as items
@@ -129,8 +134,12 @@ def book_ids(g, item):
                     text = str(e)
                     k = text.find("result=")
                     hit = re.search(r"minecraft:([a-z0-9_]+)", text[k:]) if k >= 0 else None
-                    if hit:
-                        _book.setdefault(hit.group(1), []).append(e.id())
+                    idx = re.search(r"id=[\w.$]+\[index=(\d+)\]", text)
+                    if hit and idx:
+                        # (e.id is Minescript's own object handle, shadowing
+                        # the record's id(): rebuild the id from its index)
+                        rid = _display_id()(int(idx.group(1)))
+                        _book.setdefault(hit.group(1), []).append(rid)
         except Exception as ex:
             g.log(f"recipe book unreadable: {ex}")
     return _book.get(item, []) if item != "_built" else []
