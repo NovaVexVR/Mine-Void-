@@ -269,8 +269,12 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
         back = next((k for k, v in MINE_DIRS.items() if v == (-shaft[3], -shaft[4])), None)
         if back:
             branches[back] = -1
-    d = min((k for k in MINE_DIRS if branches.get(k, 0) >= 0),
-            key=lambda k: branches.get(k, 0), default=None)
+    # Shortest branches first, and each miner its own: two miners both
+    # picked the shortest and dug the same tunnel one behind the other.
+    open_dirs = sorted((k for k in MINE_DIRS if branches.get(k, 0) >= 0),
+                       key=lambda k: (branches.get(k, 0), k))
+    digits = "".join(ch for ch in g.name if ch.isdigit()) or "0"
+    d = open_dirs[int(digits) % len(open_dirs)] if open_dirs else None
     if d is None:
         g.log("mine: every branch is blocked")
         return False
