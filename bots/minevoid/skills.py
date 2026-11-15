@@ -1914,7 +1914,11 @@ def dig_out(g, cells, tries=2, keep=()):
         for i, c in enumerate(todo):
             if g.block(*c) in AIR:
                 continue
-            g.status = f"digging the farm room ({len(todo) - i} blocks left)"
+            g.status = f"digging ({len(todo) - i} blocks left)"
+            if not g.count(lambda j: j.endswith("_pickaxe")) and \
+                    g.count(CLASSES["stone"]) >= 3:
+                # (a big dig wears out pickaxes: the cobble makes the next)
+                crafting.craft(g, "stone_pickaxe")
             if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
                 g.goto_near(c[0], c[1], c[2], radius=2, timeout=25)
                 g.stop()
