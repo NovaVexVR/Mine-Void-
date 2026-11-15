@@ -2086,6 +2086,18 @@ def assist(g, facts, to):
     return True
 
 
+def wait_for_food(g, facts, timeout=180):
+    """Starving and nearly dead: stay in the base room until a teammate
+    brings bread or the farm has ripe wheat, then eat."""
+    g.status = "waiting in the base for food"
+    x, y, z = facts["base"]
+    if not g.in_rooms(g.pos()) and not g.goto(x, y, z, timeout=240, near=1):
+        return False
+    food = CLASSES["food"]
+    g.wait(lambda: g.count(food) > 0, timeout, 2)
+    return g.count(food) > 0
+
+
 def idle(g, facts):
     g.status = "idle"
     g.sleep(10)
@@ -2406,6 +2418,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "water_farm": water_farm,
     "build_pen": build_pen,
     "dig_shaft": dig_shaft,
+    "wait_for_food": wait_for_food,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}

@@ -339,6 +339,13 @@ class Agent:
             # Surface work waits for daylight, and so does a bot that just
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
+        elif g.health() <= 6 and g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 \
+                and g.overworld() and "base" in self.facts \
+                and task["skill"] not in ("harvest", "fish"):
+            # Starving at half a heart: anything outside kills us (most of
+            # 34 deaths). Wait in the base for the farm's bread instead.
+            task = {"id": "wait_for_food", "skill": "wait_for_food", "args": {},
+                    "at_base": True}
         elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night() \
                 and g.overworld() and task["skill"] not in ("harvest", "fish"):
             # (Not instead of harvesting or fishing: those are food too, and
@@ -347,7 +354,8 @@ class Agent:
                     "surface": True}
         exit_ = self.facts.get("base_exit")
         if exit_ and not task.get("at_base") and task["skill"] not in (
-                "shelter", "dig_in", "seal_base", "build_exit", "build_farm_room") \
+                "shelter", "dig_in", "seal_base", "build_exit", "build_farm_room",
+                "wait_for_food") \
                 and g.in_rooms(g.pos()):
             # Out by the door first: with digging off inside the base,
             # Baritone could neither mine nor explore from in there and the
