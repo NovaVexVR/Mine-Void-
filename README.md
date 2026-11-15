@@ -145,8 +145,10 @@ live runs; see Status for details.
 **Stage 1 – early game** (mostly working, being stabilised)
 1. Wood -> wooden -> stone tools, food, underground base at spawn – done
 2. Sustainable food: shared animal sightings (done), cooking (done), wheat
-   farm room in the base (built), harvests, fishing once someone has
-   string, breeding animals
+   farm room in the base (built; a 7x7 enlargement is coded but parked:
+   it needs plenty of torches), harvests that bake bread first, torches
+   from charcoal when there is no coal, fishing in the farm water once
+   someone has string, breeding animals
 3. A bed for every bot in the base (respawn point, sleep through nights) –
    done; shears to shear sheep instead of killing them
 4. Iron kit for every bot: pickaxe, shears, shield, sword (done for two

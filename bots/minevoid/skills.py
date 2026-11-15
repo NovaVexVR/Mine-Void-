@@ -1470,12 +1470,14 @@ def harvest(g, facts, radius=12):
                 g.break_block(*c, timeout=6)
             lay_soil(g, c, centre, (farm_xz(facts["base"])[0][0], x - 3), y)
     for c in corners:
-        # Crops need light. (The room grew: the old corner torches stood on
-        # what are plots now and got picked up; the new corners need them.)
-        if g.count(lambda i: i == "torch") and g.block(*c) in AIR:
+        # Crops need light: without the corner torches every plant died.
+        if g.count(lambda i: i == "torch") and g.block(*c) not in ("torch", "wall_torch"):
             if math.dist(g.pos(), (c[0] + .5, y + .5, c[2] + .5)) > 3.5:
                 g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
                 g.stop()
+            if g.block(*c) not in AIR:
+                g.select(lambda i: i.endswith(("_pickaxe", "_shovel")))
+                g.break_block(*c, timeout=6)
             g.place_at("torch", *c)
     if not g.count(lambda i: i.endswith("_hoe")):
         # no hoe, no farmland: 21 seeds sat unplanted (wooden unless we
@@ -1698,11 +1700,12 @@ def pour_by_door(g, facts):
 
 
 def farm_xz(base):
-    """The farm room's floor: x from base-10 to base-4, z +-3 (7x7). The
-    water stays where the first, 5x5 room had it (base-6): every plot is
-    within the 4 blocks that one water source keeps hydrated."""
+    """The farm room's floor: x from base-8 to base-4, z +-2 (5x5, water
+    in the middle). (A 7x7 room was tried: enlarging it picked up the
+    corner torches, and without light - no coal yet - all the wheat died.
+    Bigger again once torches are plentiful.)"""
     x, _, z = base
-    return (x - 10, x - 4), (z - 3, z + 3)
+    return (x - 8, x - 4), (z - 2, z + 2)
 
 
 def farm_room_cells(base):
@@ -2122,6 +2125,27 @@ def assist(g, facts, to):
     return True
 
 
+def make_torches(g, facts, count=12):
+    """Torches without coal: logs smelted to charcoal in the base furnace
+    (planks for fuel), then charcoal and sticks. The farm room dies
+    without light, and the team had found no coal at all."""
+    has = lambda i: g.count(lambda j: j == i)
+    if has("torch") >= count:
+        return True
+    need = math.ceil((count - has("torch")) / 4)
+    if g.count(CLASSES["coal"]) < need:
+        logs = need - g.count(CLASSES["coal"]) + 2  # (+2: planks for fuel)
+        if g.count(CLASSES["log"]) < logs and \
+                not gather(g, facts, "logs", "log", logs, timeout=600, until_dark=True):
+            return False
+        smelt(g, facts, "log", "charcoal", need - g.count(CLASSES["coal"]))
+    n = min(need, g.count(CLASSES["coal"]))
+    if n:
+        crafting.craft(g, "torch", n)
+    g.log(f"torches: {has('torch')} made from charcoal")
+    return has("torch") > 0
+
+
 def wait_for_food(g, facts, timeout=180):
     """Starving and nearly dead: stay in the base room until a teammate
     brings bread or the farm has ripe wheat, then eat."""
@@ -2455,6 +2479,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "build_pen": build_pen,
     "dig_shaft": dig_shaft,
     "wait_for_food": wait_for_food,
+    "make_torches": make_torches,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}
