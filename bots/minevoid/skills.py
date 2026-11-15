@@ -92,6 +92,29 @@ ORES = {"iron": ("iron_ore", "deepslate_iron_ore", "coal_ore", "deepslate_coal_o
 HAZARDS = ("lava", "water", "bubble_column")
 
 
+def make_bow(g, facts, arrows=16):
+    """A bow and arrows: string and feathers come from the chest (spiders
+    and chickens filled it), flint from gravel."""
+    has = lambda i: g.count(lambda j: j == i)
+    if not has("bow"):
+        if has("string") < 3:
+            withdraw(g, facts, "string", 3)
+        if has("string") < 3 or not crafting.craft(g, "bow"):
+            g.log("bow: not enough string")
+            return False
+    sets = max(0, (arrows - has("arrow") + 3) // 4)
+    if sets:
+        if has("feather") < sets:
+            withdraw(g, facts, "feather", sets)
+        if has("flint") < sets:
+            gather(g, facts, "gravel", "flint", sets, timeout=400, until_dark=True)
+        n = min(sets, has("feather"), has("flint"))
+        if n:
+            crafting.craft(g, "arrow", n)
+    g.log(f"bow: {has('bow')} bow, {has('arrow')} arrows")
+    return has("bow") > 0 and has("arrow") > 0
+
+
 def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
                 length=24, timeout=900):
     """Mine ore from the team's own branch mine instead of wandering into
@@ -1820,5 +1843,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "smelt_storage": smelt_storage, "fetch_water": fetch_water,
           "build_farm_room": build_farm_room,
     "branch_mine": branch_mine,
+    "make_bow": make_bow,
     "water_farm": water_farm,
           "harvest": harvest}

@@ -40,6 +40,8 @@
   ]},
   {"id": "iron", "title": "Iron kit", "tasks": [
    {"id": "craft_kit", "at_base": true, "scope": "each", "skill": "craft", "kit_craft": true, "preempt": true, "args": {}, "note": "crafts the next missing kit item once the bot holds enough iron"},
+   {"id": "bow", "scope": "each", "skill": "make_bow", "needs_fact": "base", "storage_has": {"string": 3}, "have": {"bow": 1}, "args": {}, "note": "skeletons and pillagers out-range a sword"},
+   {"id": "arrows", "scope": "each", "skill": "make_bow", "requires": {"bow": 1}, "have": {"arrow": 8}, "args": {}},
    {"id": "smelt_trip", "at_base": true, "scope": "each", "skill": "smelt", "preempt": true, "requires": {"raw_iron": 3}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
    {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},

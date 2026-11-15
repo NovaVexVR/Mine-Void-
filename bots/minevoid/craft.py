@@ -28,6 +28,8 @@ RECIPES = {
     "shears": ((" I", "I "), {"I": "iron_ingot"}, 1),
     "fishing_rod": (("  S", " SX", "S X"), {"S": "stick", "X": "string"}, 1),
     "shield": (("PIP", "PPP", " P "), {"P": "planks", "I": "iron_ingot"}, 1),
+    "bow": ((" SX", "S X", " SX"), {"S": "stick", "X": "string"}, 1),
+    "arrow": (("F", "S", "E"), {"F": "flint", "S": "stick", "E": "feather"}, 4),
     "iron_helmet": (("III", "I I"), {"I": "iron_ingot"}, 1),
     "iron_chestplate": (("I I", "III", "III"), {"I": "iron_ingot"}, 1),
     "iron_leggings": (("III", "I I", "I I"), {"I": "iron_ingot"}, 1),

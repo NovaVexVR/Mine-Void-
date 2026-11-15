@@ -175,6 +175,18 @@ class Agent:
             finally:
                 m.player_press_jump(False)
                 g.b("resume")
+        if now - getattr(self, "last_shot", 0) > 2 and g.count(lambda i: i == "arrow") \
+                and g.count(lambda i: i == "bow"):
+            far = [e for e in g.hostiles(24)
+                   if e.type.rsplit(".", 1)[-1] in game.RANGED
+                   and math.dist(e.position, g.pos()) > 5]
+            if far:
+                g.b("pause")
+                try:
+                    g.shoot(far[0])
+                finally:
+                    g.b("resume")
+                self.last_shot = time.time()
         if now - self.last_fight > 1 and g.hostiles(4.5):
             # Baritone owns the camera while pathing, so pause it, fight
             # properly, then let it carry on. (Kill Aura helps as well.)

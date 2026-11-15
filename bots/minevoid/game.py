@@ -24,7 +24,9 @@ BLOCK_GROUPS = {
     "coal": "coal_ore deepslate_coal_ore",
     "grass": "short_grass tall_grass",
     "dirt": "dirt grass_block",
+    "gravel": "gravel",
 }
+RANGED = ("skeleton", "stray", "bogged", "pillager", "witch", "creeper")
 BARITONE_SETTINGS = {
     # Play like a legit player: the server runs GrimAC and anti-xray, so do
     # not trust ore positions in chunk data and avoid twitchy movement.
@@ -874,6 +876,29 @@ class Game:
         m.player_press_use(True)
         time.sleep(2.2)
         m.player_press_use(False)
+        return True
+
+    def shoot(self, entity):
+        """Shoot an arrow at a mob: skeletons and pillagers out-ranged the
+        bots' swords, and creepers are best killed before they arrive."""
+        if not (self.count(lambda i: i == "arrow") and self.select(lambda i: i == "bow")):
+            return False
+        x, y, z = entity.position
+        d = math.dist((x, y, z), self.pos())
+        m.player_press_use(True)
+        try:
+            end = time.time() + 1.1  # full draw
+            while time.time() < end:
+                fresh = m.entities(uuid=entity.uuid, max_distance=32)
+                if fresh:
+                    x, y, z = fresh[0].position
+                    d = math.dist((x, y, z), self.pos())
+                # aim above the target for the arrow's drop over the distance
+                m.player_look_at(x, y + 1.1 + 0.003 * d * d, z)
+                time.sleep(0.1)
+        finally:
+            m.player_press_use(False)
+        time.sleep(0.2)
         return True
 
     def fight(self, radius=6, timeout=25):
