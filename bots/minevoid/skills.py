@@ -170,7 +170,7 @@ def make_books(g, facts, books=3):
 SHAFT_TURNS = ((1, 0), (0, 1), (0, -1), (-1, 0))
 
 
-def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=1500):
+def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=3600):
     """Dig the team's own staircase down to a mine level, once: 1-wide,
     3-high steps going down one block per step, a torch every ~10 blocks,
     turning aside at lava or water. Walking to the mine through caves got
