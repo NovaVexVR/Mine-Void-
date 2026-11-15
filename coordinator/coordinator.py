@@ -404,8 +404,11 @@ class Coordinator:
                         # zombies in a shady forest that killed bot after
                         # bot going back for logs (30 min).
                         ttl = 43200 if (p[1] < 55 or ev.endswith("in water")) else 1800
-                        if "Pillager" in last_death_message(name):
-                            ttl = 43200  # an outpost keeps spawning them
+                        msg = last_death_message(name)
+                        if "Pillager" in msg or "Drowned" in msg:
+                            # an outpost keeps spawning pillagers; Drowned
+                            # live in that water for good
+                            ttl = 43200
                         now = time.time()
                         self.facts["danger"] = [
                             d for d in self.facts.get("danger", [])
