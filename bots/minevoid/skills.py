@@ -1150,6 +1150,8 @@ def fish(g, facts, count=20, timeout=900):
     """Fish with Meteor's Auto Fish until `count` food items are held:
     endless food from any water, close to home."""
     rod = lambda i: i == "fishing_rod"
+    if not g.count(rod) and g.count(lambda i: i == "string") < 2:
+        withdraw(g, facts, "string", 2)  # spiders' string piles up in the chest
     if not g.count(rod) and not crafting.craft(g, "fishing_rod"):
         return False
     food = CLASSES["food"]
