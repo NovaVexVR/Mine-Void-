@@ -212,6 +212,9 @@ class Agent:
                 finally:
                     g.b("resume")
                 self.last_shot = time.time()
+        if now - getattr(self, "last_ender_check", 0) > 0.4:
+            self.last_ender_check = now
+            self.dont_stare(g)
         if now - getattr(self, "last_archer_check", 0) > 3 and g.overworld() \
                 and not g.count(lambda i: i == "bow"):
             self.last_archer_check = now
@@ -278,6 +281,48 @@ class Agent:
                         and (self.task.get("surface")
                              or ("base" in self.facts and not self.task.get("at_base"))):
                     raise game.TaskChanged("night")
+
+    def geared(self, g):
+        """Fit to take on an enderman: an iron (or better) sword and a
+        shield or an iron chestplate."""
+        inv = g.inv()
+        sword = any(i in inv for i in ("iron_sword", "diamond_sword", "netherite_sword"))
+        return sword and any(i in inv for i in ("shield", "iron_chestplate",
+                                                "diamond_chestplate"))
+
+    def dont_stare(self, g):
+        """Endermen turn on a player who looks at their head. Until we are
+        geared up, never let the crosshair rest on one: look at our feet
+        for a moment instead. (An enderman killed Void1 ten minutes after
+        it had made its iron kit, and took the kit with it.)"""
+        if self.task and self.task.get("skill") == "hunt" and \
+                "enderman" in str(self.task.get("args", {}).get("animals", "")):
+            return  # hunting them on purpose
+        if self.geared(g):
+            return
+        try:
+            ems = m.entities(type=".*\\.enderman$", max_distance=48)
+        except Exception:
+            return
+        if not ems:
+            return
+        yaw, pitch = m.player_orientation()
+        ry, rp = math.radians(yaw), math.radians(pitch)
+        look = (-math.sin(ry) * math.cos(rp), -math.sin(rp), math.cos(ry) * math.cos(rp))
+        x, y, z = g.pos()
+        eye = (x, y + 1.62, z)
+        for e in ems:
+            ex, ey, ez = e.position
+            v = (ex - eye[0], ey + 2.55 - eye[1], ez - eye[2])
+            d = math.sqrt(sum(c * c for c in v)) or 1.0
+            if sum(a * b for a, b in zip(look, v)) / d > 0.96:  # within ~16 deg
+                g.b("pause")
+                try:
+                    m.player_set_orientation(yaw, 80)
+                    time.sleep(0.6)
+                finally:
+                    g.b("resume")
+                return
 
     # -- main loop ---------------------------------------------------------
     def run(self):
