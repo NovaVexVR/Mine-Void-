@@ -1442,9 +1442,13 @@ def harvest(g, facts, radius=12):
     if len(empty) > g.count(seeds) and daylight:
         gather(g, facts, "grass", "wheat_seeds", len(empty), timeout=300, until_dark=True)
         g.goto(x - 4, y + 1, z, timeout=180, near=1)
+    laid = 0
     for c in soil:
+        if laid >= 8:
+            break  # (a few per harvest: soiling a whole new room took ages)
         if g.block(*c) not in ("dirt", "farmland", "grass_block") and \
                 g.count(lambda i: i == "dirt"):
+            laid += 1
             if g.block(*c) not in AIR + ("water",):
                 # a stray block in the plot (netherrack Baritone dropped)
                 if math.dist(g.pos(), (c[0] + .5, y + .5, c[2] + .5)) > 3.5:
