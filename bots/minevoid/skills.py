@@ -210,7 +210,7 @@ def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=1500):
             i = SHAFT_TURNS.index((dx, dz)) if (dx, dz) in SHAFT_TURNS else 0
             dx, dz = SHAFT_TURNS[(i + 1) % 4]
             continue
-        for c in dig:
+        for c in reversed(dig):  # top first: the lower blocks hide behind it
             for _ in range(4):  # gravel and sand fall in
                 if g.block(*c) in AIR:
                     break
