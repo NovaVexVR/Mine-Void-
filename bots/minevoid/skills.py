@@ -692,7 +692,23 @@ def dig_in(g, facts):
 def recover(g, facts, pos):
     """Walk back to where we died and pick the dropped items up."""
     g.status = f"recovering gear at {pos}"
-    g.goto_near(*pos, radius=1, timeout=200)
+    x, y, z = pos
+    g.b(f"goto {x} {y} {z}")
+    end = time.time() + 200
+    while time.time() < end and math.dist(g.pos(), pos) > 1.5 and g.busy():
+        g.sleep(1)
+        if math.dist(g.pos(), pos) < 24:
+            guard = [e for e in g.hostiles(40, visible=False)
+                     if math.dist(e.position, pos) < 12]
+            if guard:
+                # The mob that killed us is still there: Void3 died twice
+                # to the same Drowned walking back for its things.
+                g.stop()
+                g.log(f"recover: a {guard[0].type.rsplit('.', 1)[-1]} waits by "
+                      f"the drop at {pos}; leaving the gear")
+                return True
+    g.stop()
+    g.goto_near(*pos, radius=1, timeout=20)
     g.sleep(4)
     return True
 
