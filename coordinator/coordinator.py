@@ -397,10 +397,16 @@ class Coordinator:
                         p = None
                     # (Lake beds expose ore: miners dived in after it and
                     # drowned fighting the Drowned.)
-                    if p and " in the_" not in ev and (p[1] < 55 or ev.endswith("in water")):
+                    if p and " in the_" not in ev:
+                        # Underground/in water: a cave or lake that stays
+                        # deadly (12 h). On the surface: a mob pack, often
+                        # zombies in a shady forest that killed bot after
+                        # bot going back for logs (30 min).
+                        ttl = 43200 if (p[1] < 55 or ev.endswith("in water")) else 1800
                         now = time.time()
-                        self.facts["danger"] = [d for d in self.facts.get("danger", [])
-                                                if now - d[3] < 43200][-11:] + [p + [now]]
+                        self.facts["danger"] = [
+                            d for d in self.facts.get("danger", [])
+                            if now - d[3] < (d[4] if len(d) > 4 else 43200)][-11:] + [p + [now, ttl]]
                         self.save()  # (lost on a restart otherwise)
                 if r["event"].endswith(" failed"):
                     self.failed_at[(name, r["event"][:-len(" failed")])] = time.time()

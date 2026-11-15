@@ -48,9 +48,11 @@ def avoid_danger(g, facts, radius=28):
         return False
     here = g.pos()
     spots = [d[:3] for d in facts.get("danger", [])
-             if time.time() - d[3] < 43200 and math.dist(d[:3], here) < radius]
+             if time.time() - d[3] < (d[4] if len(d) > 4 else 43200)
+             and math.dist(d[:3], here) < radius
+             and not (facts.get("base") and math.dist(d[:3], facts["base"]) < 32)]
     if not spots:
-        return False
+        return False  # (deaths at home are dealt with at home, not avoided)
     d = spots[0]
     # Far enough that the spot's chunks unload: Baritone mines the nearest
     # visible ore in loaded chunks, and from 60 blocks away that was still
@@ -256,7 +258,7 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
         come_home(g, facts)
         if blocks in ("iron", "coal", "stone"):
             last_torch = light_the_way(g, last_torch)
-            avoid_danger(g, facts)
+        avoid_danger(g, facts)
         base = facts.get("base")
         if blocks in ("iron", "coal") and base and math.dist(g.pos(), base) < 20:
             # Ore showing through gaps in the base's walls drew a miner back
@@ -378,6 +380,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
         if fed and g.hunger() >= fed:
             return True  # an emergency meal is eaten as caught: stop once full
         come_home(g, facts, leash=2 * LEASH)
+        avoid_danger(g, facts)
         g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
         prey = [e for e in m.entities(type=f".*\\.({animals})$", max_distance=60,
                                       sort="nearest", limit=8)

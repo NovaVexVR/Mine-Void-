@@ -492,9 +492,9 @@ def throw_eye(g):
     (x, z, dx, dz) from where we stood, or (x, z, 0, 0) if it rose straight
     up (we are on top of the stronghold). The eye usually drops back down:
     pick it up again."""
+    g.stop()
     if not g.select(lambda i: i == "ender_eye"):
         return None
-    g.stop()
     x0, _, z0 = g.pos()
     m.player_set_orientation(m.player_orientation()[0], -20)
     m.player_press_use(True)
@@ -733,11 +733,21 @@ def end_fight(g, facts, timeout=3600):
     return False
 
 
+def dev(g, facts, code):
+    """Testing aid (POST /force): run a snippet as a task. It can set
+    `result`; nothing in the plan uses this."""
+    env = {"g": g, "facts": facts, "m": m, "skills": skills, "endgame": globals(),
+           "result": True}
+    exec(code, env)
+    g.log(f"dev: {env['result']}")
+    return env["result"]
+
+
 # Registered with the other skills (this module is loaded after them).
 skills.SKILLS.update({
     "enchanting_table": enchanting_table, "enchant": enchant,
     "obsidian": obsidian, "build_portal": build_portal,
     "blaze_rods": blaze_rods, "make_eyes": make_eyes,
     "find_stronghold": find_stronghold, "open_end_portal": open_end_portal,
-    "end_fight": end_fight,
+    "end_fight": end_fight, "dev": dev,
 })

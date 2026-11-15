@@ -493,14 +493,26 @@ class Game:
         self._click = None
 
     def select(self, pred):
-        """Put an item matching pred in hand. Returns False if absent."""
-        for s in m.player_inventory():
-            if pred(short(s.item)):
-                slot = s.slot if s.slot < 9 else m.player_inventory_slot_to_hotbar(s.slot)
-                m.player_inventory_select_slot(slot)
+        """Put an item matching pred in hand. Returns False if absent.
+        (While Baritone paths it owns the hotbar selection and silently
+        undoes ours - eyes of ender were never thrown - so stop it if the
+        item did not arrive in hand.)"""
+        for attempt in range(2):
+            for s in m.player_inventory():
+                if pred(short(s.item)):
+                    slot = s.slot if s.slot < 9 else m.player_inventory_slot_to_hotbar(s.slot)
+                    m.player_inventory_select_slot(slot)
+                    time.sleep(0.2)
+                    held = (m.player_hand_items().main_hand or {}).get("item")
+                    if held and pred(short(held)):
+                        return True
+                    break
+            else:
+                return False
+            if attempt == 0:
+                self.stop()
                 time.sleep(0.2)
-                return True
-        return False
+        return True  # (in the inventory, though maybe not in hand)
 
     # -- world interaction -------------------------------------------------
     def use_on(self, x, y, z, hold=0.4):
