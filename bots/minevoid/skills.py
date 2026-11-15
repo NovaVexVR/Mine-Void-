@@ -195,6 +195,12 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
         kinds = [short(k) for k in m.getblocklist([list(c) for c in look])]
         if any(k in HAZARDS for k in kinds):
             g.log(f"mine: {d} branch hit liquid at {[cx, y, cz]}; stopping it")
+            if "lava" in kinds:
+                # where the tunnel stops short of lava: obsidian comes from
+                # pouring water on it (portal, enchanting table)
+                lava = dict(facts.get("lava") or {})
+                lava[f"{name}_{d}"] = [ex, y, ez, dx, dz]
+                g.pending_facts["lava"] = lava
             branches[d] = -1  # never extend it again
             break
         for c in look[:2]:
