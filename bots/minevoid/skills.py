@@ -1027,10 +1027,12 @@ def clear_clutter(g, facts):
     clutter = [(x + dx, py, z + dz) for dx in range(-2, 3) for dz in range(-2, 3)
                for py in (y, y + 1, y + 2)]
     clutter += [(x - 3, py, z) for py in (y, y + 1, y + 2)]   # farm doorway
-    if facts.get("farm_room"):  # above the soil only
-        (x0, x1), (z0, z1) = farm_xz(facts["base"])
+    for w in farms(facts):  # above the soil only
+        sp = farm_spec(facts["base"], w)
+        (x0, x1), (z0, z1) = sp["box"]
         clutter += [(cx, py, cz) for cx in range(x0, x1 + 1)
                     for cz in range(z0, z1 + 1) for py in (y + 1, y + 2)]
+        clutter += [c for c in sp["door"] if c not in clutter]
     kinds = dict(zip(clutter, (short(k) for k in
                                m.getblocklist([list(c) for c in clutter]))))
     clutter = [c for c in clutter if kinds[c] in CLUTTER
@@ -1154,6 +1156,12 @@ def base_interior(base, farm_room=False):
         cells |= {(x - 3, cy, z) for cy in range(y, y + 3)}
     if TREE_FARM["on"]:
         cells |= set(tree_layout(base)["dig"])
+    if FARM2["on"]:
+        sp = farm_spec(base, "farm2")
+        (x0, x1), (z0, z1) = sp["box"]
+        cells |= {(cx, cy, cz) for cx in range(x0, x1 + 1)
+                  for cz in range(z0, z1 + 1) for cy in range(y, y + 3)}
+        cells |= set(sp["door"])
     return cells
 
 
@@ -1238,6 +1246,8 @@ def base_openings(g, base, farm_room=False):
         hi = (hi[0], hi[1], z + 4)
     if TREE_FARM["on"]:  # the tree room and its stair, north and below
         lo = (min(lo[0], x - 4), y - 9, z - 18)
+    if FARM2["on"]:  # the second farm room, south
+        hi = (hi[0], hi[1], z + 13)
     # (get_block_region returns empty entries away from the player;
     # getblocklist reads the same positions reliably in one call.)
     cells = [(cx, cy, cz) for cx in range(lo[0] - 1, hi[0] + 2)
@@ -1558,16 +1568,27 @@ def fish(g, facts, count=20, timeout=900):
 
 
 def harvest(g, facts, radius=12):
-    """Harvest ripe wheat in the farm room by hand, pick up the drops,
-    repair and replant the plots, bake bread. (Baritone's farm mode left the
-    drops on the floor and dug out soil, letting the water spread.)"""
+    """Harvest every indoor farm room (or the old outdoor farm)."""
     if not facts.get("farm_room"):
         return harvest_outdoor(g, facts, radius)
+    out = {}
+    for w in farms(facts):
+        r = harvest_farm(g, facts, w)
+        if isinstance(r, dict):
+            out.update(r)
+    return out or False
+
+
+def harvest_farm(g, facts, which="farm"):
+    """Harvest ripe wheat in a farm room by hand, pick up the drops,
+    repair and replant the plots, bake bread. (Baritone's farm mode left the
+    drops on the floor and dug out soil, letting the water spread.)"""
     base = facts["base"]
     x, y, z = base
-    centre, corners, soil = farm_room_cells(base)
-    g.status = "harvesting the farm"
-    if not g.goto(x - 4, y + 1, z, timeout=180, near=1):
+    sp = farm_spec(base, which)
+    centre, corners, soil = farm_room_cells(base, which)
+    g.status = f"harvesting the {which}"
+    if not g.goto(*sp["stand"], timeout=180, near=1):
         if not g.goto(*base, timeout=180, near=1):
             g.log(f"harvest: could not get to the farm (at {g.block_pos()})")
             return False
@@ -1614,8 +1635,8 @@ def harvest(g, facts, radius=12):
         if g.count(lambda i: i == "water_bucket") and pour_into_hole(g, centre, y):
             g.log("harvest: poured the farm's water back")
         else:
-            g.log("harvest: the farm has no water")
-            g.pending_facts["farm_dry"] = True
+            g.log(f"harvest: the {which} has no water")
+            g.pending_facts[sp["fact"] + "_dry"] = True
     # Soil lost to digging or a flood comes back; till and plant every plot.
     # Lost soil (a hole, or a block Baritone dropped) is put back here;
     # natural rock is a plot not yet made (farm_expand's job: soiling it
@@ -1626,13 +1647,13 @@ def harvest(g, facts, radius=12):
     daylight = not g.is_night() and not g.is_dusk()
     if missing and g.count(lambda i: i == "dirt") < len(missing) and daylight:
         gather(g, facts, "dirt", "dirt", len(missing), timeout=300, until_dark=True)
-        g.goto(x - 4, y + 1, z, timeout=180, near=1)
+        g.goto(*sp["stand"], timeout=180, near=1)
     # Seeds for every empty plot (grass drops them), so the farm grows to
     # its full 20 plots instead of replanting only what it harvested.
     empty = [c for c in soil if g.block(c[0], y + 1, c[2]) != "wheat"]
     if len(empty) > g.count(seeds) and daylight:
         gather(g, facts, "grass", "wheat_seeds", len(empty), timeout=300, until_dark=True)
-        g.goto(x - 4, y + 1, z, timeout=180, near=1)
+        g.goto(*sp["stand"], timeout=180, near=1)
     laid = 0
     for c in soil:
         if laid >= 8:
@@ -1647,7 +1668,7 @@ def harvest(g, facts, radius=12):
                     g.stop()
                 g.select(lambda i: i.endswith("_pickaxe"))
                 g.break_block(*c, timeout=6)
-            lay_soil(g, c, centre, (farm_xz(facts["base"])[0][0], x - 3), y)
+            lay_soil(g, c, centre, (sp["box"][0][0], sp["box"][0][1] + 1), y)
     for c in corners:
         # Crops need light: without the corner torches every plant died.
         if g.count(lambda i: i == "torch") and g.block(*c) not in ("torch", "wall_torch"):
@@ -1688,9 +1709,9 @@ def harvest(g, facts, radius=12):
     spare = g.count(lambda i: i == "wheat") - (6 if facts.get("pen") else 0)
     if spare >= 3:
         crafting.craft(g, "bread", spare // 3)
-    g.log(f"harvest: {len(ripe)} ripe, {planted} plots growing, "
+    g.log(f"harvest: {which} {len(ripe)} ripe, {planted} plots growing, "
           f"{g.count(lambda i: i == 'bread')} bread")
-    return {"farm_plots": planted}
+    return {sp["fact"] + "_plots": planted}
 
 
 def pick_up_drops(g, centre, radius):
@@ -1878,29 +1899,52 @@ def pour_by_door(g, facts):
     return False
 
 
-def farm_xz(base):
-    """The farm room's floor: x from base-8 to base-4, z +-2 (5x5, water
-    in the middle). (A 7x7 room was tried: enlarging it picked up the
-    corner torches, and without light - no coal yet - all the wheat died.
-    Bigger again once torches are plentiful.)"""
-    x, _, z = base
-    return (x - 8, x - 4), (z - 2, z + 2)
+FARM2 = {"on": False}  # set from the team's facts (brain.report)
 
 
-def farm_room_cells(base):
-    """Layout of the farm room west of the base room: (centre, corner
-    cells for torches, soil cells). Soil sits one block above the base
-    floor with the water in the centre cell, level with the soil. 44 plots
-    (the first room had 20: not enough bread for three bots)."""
+def farm_spec(base, which="farm"):
+    """The indoor farm rooms. "farm": west of the base room, 7x9 around the
+    first room's water (one source keeps every plot within 4 blocks wet),
+    lit by four torches 4 apart - the first, 5x5 room's corner torches, so
+    enlarging it never darkens it (the last attempt did and the wheat
+    died). "farm2": south of the base room, 5x9 with its own water."""
     x, y, z = base
-    (x0, x1), (z0, z1) = farm_xz(base)
-    centre = (x - 6, y, z)
-    corners = [(cx, y, cz) for cx in (x0, x1) for cz in (z0, z1)]
+    if which == "farm2":
+        return {"box": ((x - 2, x + 2), (z + 4, z + 12)), "water": (x, y, z + 8),
+                "torches": [(x - 2, y, z + 6), (x + 2, y, z + 6),
+                            (x - 2, y, z + 10), (x + 2, y, z + 10)],
+                "door": [(x, cy, z + 3) for cy in range(y + 2, y - 1, -1)],
+                "stand": (x, y + 1, z + 4), "fact": "farm2", "room": "farm2_room"}
+    return {"box": ((x - 10, x - 4), (z - 4, z + 4)), "water": (x - 6, y, z),
+            "torches": [(x - 8, y, z - 2), (x - 8, y, z + 2), (x - 4, y, z - 2), (x - 4, y, z + 2)],
+            "door": [(x - 3, cy, z) for cy in range(y + 2, y - 1, -1)],
+            "stand": (x - 4, y + 1, z), "fact": "farm", "room": "farm_room"}
+
+
+def farm_xz(base, which="farm"):
+    return farm_spec(base, which)["box"]
+
+
+def farms(facts):
+    """The farm rooms the team has (or is digging)."""
+    base = facts.get("base")
+    return [w for w in ("farm", "farm2")
+            if base and facts.get(farm_spec(base, w)["room"])]
+
+
+def farm_room_cells(base, which="farm"):
+    """(water cell, torch cells, soil cells) of a farm room. Soil sits at
+    the base's floor level with the water level with it."""
+    sp = farm_spec(base, which)
+    y = base[1]
+    (x0, x1), (z0, z1) = sp["box"]
+    centre, torches = sp["water"], sp["torches"]
     soil = [(cx, y, cz) for cx in range(x0, x1 + 1) for cz in range(z0, z1 + 1)
-            if (cx, y, cz) != centre and (cx, y, cz) not in corners]
+            if (cx, y, cz) != centre and (cx, y, cz) not in torches]
     # far side first, so the bot works its way back towards the doorway
-    soil.sort(key=lambda c: (c[0], abs(c[2] - z)))
-    return centre, corners, soil
+    d = sp["door"][0]
+    soil.sort(key=lambda c: -math.dist((c[0], c[2]), (d[0], d[2])))
+    return centre, torches, soil
 
 
 def lay_soil(g, c, centre, xs, y):
@@ -2027,16 +2071,19 @@ def water_farm(g, facts):
     return {"farm_dry": False}
 
 
-def build_farm_room(g, facts, plots=20):
+def build_farm_room(g, facts, plots=20, which="farm"):
     """An underground wheat farm inside the base: a 5x5 room off the west
     wall, soil carried in (the base is solid stone), torches in the
     corners (crops need light), and a bucket of water in the middle so
     every plot is hydrated. Safe from mobs, and nobody has to work next to
     the Drowned-infested water outside."""
     x, y, z = facts["base"]
-    centre, corners, soil = farm_room_cells((x, y, z))
+    sp = farm_spec((x, y, z), which)
+    centre, corners, soil = farm_room_cells((x, y, z), which)
     has = lambda i: g.count(lambda j: j == i)
     seeds = lambda i: i == "wheat_seeds"
+    if has("torch") < len(corners):
+        make_torches(g, facts, count=len(corners) + 4)
     # -- materials (surface errands; the skill resumes after a night) ------
     short_of = (not g.count(lambda i: i.endswith("_hoe")) or has("dirt") < 16
                 or g.count(seeds) < 2 or (has("torch") < 2 and not g.count(CLASSES["coal"])))
@@ -2069,12 +2116,17 @@ def build_farm_room(g, facts, plots=20):
         return False
     # Tell the team first: the half-dug doorway otherwise looks like a hole
     # in the base, and the sealing job walled it up again.
-    g.pending_facts["farm_room"] = True
-    g.wait(lambda: facts.get("farm_room"), 15, 1)
-    (fx0, fx1), (fz0, fz1) = farm_xz((x, y, z))
-    room = [(cx, cy, cz) for cx in range(x - 3, fx0 - 1, -1)  # door side first
-            for cz in range(fz0, fz1 + 1) for cy in range(y, y + 3)
-            if cx != x - 3 or cz == z]                      # doorway: one wide
+    g.pending_facts[sp["room"]] = True
+    if which == "farm2":
+        FARM2["on"] = True
+    g.wait(lambda: facts.get(sp["room"]), 15, 1)
+    (fx0, fx1), (fz0, fz1) = sp["box"]
+    d = sp["door"][0]
+    # the doorway, then the room from the door outward, top first
+    room = list(sp["door"]) + sorted(
+        ((cx, cy, cz) for cx in range(fx0, fx1 + 1) for cz in range(fz0, fz1 + 1)
+         for cy in range(y, y + 3)),
+        key=lambda c: (round(math.dist((c[0], c[2]), (d[0], d[2]))), -c[1]))
     solid = [c for c, k in zip(room, m.getblocklist([list(c) for c in room]))
              if short(k) not in AIR]
     if len(solid) > len(room) // 2:
@@ -2082,8 +2134,8 @@ def build_farm_room(g, facts, plots=20):
         g.b("sel clear")
         g.b(f"sel 1 {fx0} {y} {fz0}")
         g.b(f"sel 2 {fx1} {y + 2} {fz1}")
-        g.b(f"sel 1 {x - 3} {y} {z}")          # doorway through the west wall
-        g.b(f"sel 2 {x - 3} {y + 2} {z}")
+        g.b(f"sel 1 {d[0]} {y} {d[2]}")        # the doorway through the wall
+        g.b(f"sel 2 {d[0]} {y + 2} {d[2]}")
         g.dig_ok = True  # digging the base on purpose (see Game.base_guard)
         g.b("sel cleararea")
         g.sleep(3)
@@ -2110,7 +2162,7 @@ def build_farm_room(g, facts, plots=20):
             g.goto_near(*c, radius=2, timeout=20)
             g.stop()
             g.break_torch(*c)
-        lay_soil(g, c, centre, (farm_xz(facts["base"])[0][0], x - 3), y)
+        lay_soil(g, c, centre, (fx0, fx1 + 1), y)
     for c in corners:  # (again: torches of the old, smaller room came back up)
         if has("torch") and g.block(*c) in AIR:
             g.place_at("torch", *c)
@@ -2163,9 +2215,9 @@ def build_farm_room(g, facts, plots=20):
     if planted < 2:
         return False
     soiled = sum(g.block(*c) in ("dirt", "farmland") for c in soil)
-    out = {"farm": list(centre), "farm_plots": planted, "farm_room": True}
-    if soiled >= len(soil) - 2:
-        out["farm_big"] = True  # the 7x7 room is dug and soiled
+    out = {sp["fact"]: list(centre), sp["fact"] + "_plots": planted, sp["room"]: True}
+    if which == "farm" and soiled >= len(soil) - 2:
+        out["farm_big"] = True  # the 7x9 room is dug and soiled
     return out
 
 
@@ -2332,16 +2384,22 @@ def make_torches(g, facts, count=12):
 
 
 def light_farm(g, facts):
-    """Torches on the farm room's corners (the wheat dies in the dark)."""
-    if not facts.get("farm_room") or not g.count(lambda i: i == "torch"):
+    """Torches in the farm rooms (the wheat dies in the dark)."""
+    for w in farms(facts):
+        light_one_farm(g, facts, w)
+
+
+def light_one_farm(g, facts, which):
+    if not g.count(lambda i: i == "torch"):
         return
     x, y, z = facts["base"]
-    _, corners, _ = farm_room_cells((x, y, z))
+    sp = farm_spec((x, y, z), which)
+    _, corners, _ = farm_room_cells((x, y, z), which)
     dark = [c for c in corners if g.block(*c) not in ("torch", "wall_torch")]
     if not dark:
         return
-    g.status = "lighting the farm room"
-    g.goto(x - 4, y + 1, z, timeout=180, near=1)
+    g.status = f"lighting the {which}"
+    g.goto(*sp["stand"], timeout=180, near=1)
     for c in dark:
         if not g.count(lambda i: i == "torch"):
             break
