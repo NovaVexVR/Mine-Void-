@@ -52,7 +52,8 @@
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},
    {"id": "mine_shaft", "scope": "team", "slots": 1, "skill": "dig_shaft", "requires": {"stone_pickaxe|iron_pickaxe": 1}, "needs_fact": "base_exit", "args": {"start": "base_exit", "to_y": 16, "name": "mine"}, "fact": "mine", "note": "a lit staircase from the top of the base stairs down to y=16: walking to the mine through caves got a bot killed"},
    {"id": "light_shaft", "scope": "team", "slots": 1, "skill": "light_shaft", "needs_fact": "mine", "args": {"name": "mine", "start": "base_exit"}, "fact": "mine_lit", "note": "torches down the shaft dug before anyone had coal"},
-   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "needs_fact": "mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
+   {"id": "iron_ore", "scope": "team", "slots": 1, "skill": "branch_mine", "needs_fact": "mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
+   {"id": "iron_caves", "scope": "team", "slots": 1, "skill": "gather", "kit_mine": true, "trip": 6, "requires": {"shield": 1}, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "visible ore in caves (Baritone, torches, danger spots avoided): the branch mine exposes too little rock - 30 blocks of tunnel, no iron"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
   ]},
   {"id": "ranch", "title": "Animal pen", "tasks": [

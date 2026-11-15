@@ -356,9 +356,14 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
         # (saved as we go: dusk interrupted runs and their tunnels were lost)
         branches[d] = n
         g.pending_facts[f"{name}_branches"] = dict(branches)
-        # ore showing in the walls, floor or ceiling of the new cell
-        walls = [(ex + a, yy, ez + b) for a, b in side for yy in (y, y + 1)]
-        walls += [(ex, y - 1, ez), (ex, y + 2, ez)]
+        # Ore showing in the walls, floor or ceiling - of the new cell and
+        # of the one before it: anti-xray sends the real blocks a moment
+        # after a block breaks, so the new cell's walls can still read as
+        # plain stone (30 blocks of tunnel turned up no iron at all).
+        walls = []
+        for wx, wz in ((ex, ez), (ex - dx, ez - dz)):
+            walls += [(wx + a, yy, wz + b) for a, b in side for yy in (y, y + 1)]
+            walls += [(wx, y - 1, wz), (wx, y + 2, wz)]
         for c, k in zip(walls, m.getblocklist([list(c) for c in walls])):
             if short(k) in ores:
                 g.select(lambda i: i.endswith("_pickaxe"))
