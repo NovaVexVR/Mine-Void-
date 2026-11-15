@@ -2257,7 +2257,8 @@ def light_exit(g, facts, radius=12, spacing=5):
         if g.place_at("torch", *c):
             lit += 1
     g.log(f"exit: {lit}/{len(spots)} torches around the top of the stairs")
-    return {"exit_lit": True} if lit >= len(spots) * 2 // 3 else False
+    # (some grid spots are under trees or in water: enough is enough)
+    return {"exit_lit": True} if lit >= min(8, len(spots) // 3 + 1) else False
 
 
 def plant_trees(g, facts, max_trees=12):
