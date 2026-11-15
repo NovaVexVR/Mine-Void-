@@ -307,8 +307,10 @@ class Game:
         # (one block beyond the walls and up into the cave above the base:
         # a bot passing through that cave dug down through the ceiling)
         return (x - 10 <= pos[0] < x + 4 and z - 4 <= pos[2] < z + 5
-                and y - 1 <= pos[1] < y + 8) or self.in_tree_room(pos) \
-            or self.in_farm2(pos)
+                and y - 1 <= pos[1] < y + 8) or self.in_farm2(pos) \
+            or (self.in_tree_room(pos) and bool(self.facts.get("tree_farm")))
+        # (the tree room only once it is finished: in a half-dug stair a
+        # bot stood on a block nobody was allowed to dig, stuck for good)
 
     def base_guard(self):
         """Called every tick: no digging while inside the rooms, whatever is
