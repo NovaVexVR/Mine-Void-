@@ -889,6 +889,27 @@ def clear_clutter(g, facts):
         g.break_block(*c, timeout=6)
 
 
+def restore_door_step(g, facts):
+    """The block in front of the raised door is what lets bots walk level
+    into it; when it went missing the whole team stood jammed at the door
+    (Baritone will not jump up into a door's block)."""
+    x, y, z = facts["base"]
+    inside = g.base_door()
+    if not inside or inside[1] <= y:
+        return
+    step = (inside[0], y, inside[2])
+    if g.block(*step) not in AIR:
+        return
+    planks = next((s.item for s in m.player_inventory()
+                   if short(s.item).endswith("_planks")), None)
+    if planks is None and not crafting.craft(g, "planks"):
+        return
+    planks = planks and short(planks) or next(
+        i for i in g.inv() if i.endswith("_planks"))
+    if g.place_against(planks, *step):
+        g.log(f"base: put the door step back at {list(step)}")
+
+
 def fix_base(g, facts):
     """Put back missing base furniture. (Pits in the floor, from Baritone
     digging down or coal being mined out, are left alone: they are harmless
@@ -1059,6 +1080,7 @@ def seal_base(g, facts):
     if math.dist(g.pos(), (x, y, z)) > 10 and not g.goto(x, y, z, timeout=300, near=1):
         return False
     clear_clutter(g, facts)  # scaffolding hid the holes from view
+    restore_door_step(g, facts)
     # Rebuild the whole shell (floor, walls, ceiling) around the rooms:
     # Baritone had tunnelled through it in a dozen places, and patching only
     # the holes the flood fill found never caught up.
