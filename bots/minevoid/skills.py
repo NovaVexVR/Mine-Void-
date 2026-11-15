@@ -158,6 +158,10 @@ def make_books(g, facts, books=3):
             g.goto_near(*water, radius=8, timeout=240)
         gather(g, facts, "sugar_cane", "sugar_cane", has("sugar_cane") + cane,
                timeout=600, until_dark=True)
+    if has("sugar_cane") >= 3 and facts.get("base"):
+        # (paper needs a crafting table: out by the water none could be placed)
+        g.status = "taking the sugar cane home"
+        g.goto(*facts["base"], timeout=300, near=2)
     if has("sugar_cane") >= 3:
         crafting.craft(g, "paper", has("sugar_cane") // 3)
     n = min(n, has("paper") // 3, has("leather"))
