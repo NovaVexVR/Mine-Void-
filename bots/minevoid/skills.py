@@ -318,6 +318,9 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
         if not g.goto(cx, y, cz, timeout=15):
             break
         ex, ez, n, steps = cx, cz, n + 1, steps + 1
+        # (saved as we go: dusk interrupted runs and their tunnels were lost)
+        branches[d] = n
+        g.pending_facts[f"{name}_branches"] = dict(branches)
         # ore showing in the walls, floor or ceiling of the new cell
         walls = [(ex + a, yy, ez + b) for a, b in side for yy in (y, y + 1)]
         walls += [(ex, y - 1, ez), (ex, y + 2, ez)]
@@ -1435,6 +1438,11 @@ def harvest(g, facts, radius=12):
             g.log("harvest: the farm has no water")
             g.pending_facts["farm_dry"] = True
     # Soil lost to digging or a flood comes back; till and plant every plot.
+    # Lost soil (a hole, or a block Baritone dropped) is put back here;
+    # natural rock is a plot not yet made (farm_expand's job: soiling it
+    # from here took the harvester an hour).
+    ROCK = ("stone", "deepslate", "andesite", "diorite", "granite", "tuff", "calcite")
+    soil = [c for c in soil if g.block(*c) not in ROCK]
     missing = [c for c in soil if g.block(*c) not in ("dirt", "farmland", "grass_block")]
     daylight = not g.is_night() and not g.is_dusk()
     if missing and g.count(lambda i: i == "dirt") < len(missing) and daylight:
