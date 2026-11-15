@@ -296,8 +296,10 @@ class Game:
     def close_door(self):
         """Close the base door behind us: Baritone opens it to walk through
         and leaves it open, and a zombie walked in and killed a bot."""
+        # (Checked often: on a 3 s cadence a sprinting bot was already out
+        # of reach before its next look, and the door stayed open.)
         now = time.time()
-        if now - getattr(self, "_door_at", 0) < 3:
+        if now - getattr(self, "_door_at", 0) < 0.4:
             return
         self._door_at = now
         try:
@@ -309,7 +311,7 @@ class Game:
                 return
             cell = lambda q: (math.floor(q[0]), math.floor(q[2]))
             if cell(self.pos()) == (d[0], d[2]) or \
-                    math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) > 4:
+                    math.dist(self.pos(), (d[0] + .5, d[1], d[2] + .5)) > 4.5:
                 return  # in the doorway, or too far to reach
             if any(cell(p.position) == (d[0], d[2]) for p in m.players()
                    if p.name != self.name):
