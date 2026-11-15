@@ -262,6 +262,13 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
     branches = dict(facts.get(f"{name}_branches") or {})
     if branches.get("blocked"):
         branches.pop("blocked")
+    shaft = facts.get(f"{name}_shaft")
+    if shaft:
+        # Back the way the shaft came down runs right under its steps: the
+        # west branch dug out the staircase's floor.
+        back = next((k for k, v in MINE_DIRS.items() if v == (-shaft[3], -shaft[4])), None)
+        if back:
+            branches[back] = -1
     d = min((k for k in MINE_DIRS if branches.get(k, 0) >= 0),
             key=lambda k: branches.get(k, 0), default=None)
     if d is None:
