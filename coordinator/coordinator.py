@@ -404,6 +404,8 @@ class Coordinator:
                         # zombies in a shady forest that killed bot after
                         # bot going back for logs (30 min).
                         ttl = 43200 if (p[1] < 55 or ev.endswith("in water")) else 1800
+                        if "Pillager" in last_death_message(name):
+                            ttl = 43200  # an outpost keeps spawning them
                         now = time.time()
                         self.facts["danger"] = [
                             d for d in self.facts.get("danger", [])
@@ -467,6 +469,20 @@ DEATH_WORDS = re.compile(r" (Void\w*) (was [a-z ]+?(?: by \w[\w ]*)?|drowned|sta
                          r"fell [a-z ]+|blew up|hit the ground too hard|burned to death|"
                          r"suffocated in a wall|withered away|froze to death|died)\s*$")
 _stats = {"at": 0}
+
+
+def last_death_message(name):
+    """The server's most recent death message for a bot ("" if unknown)."""
+    try:
+        with open(SERVER_LOG, errors="replace") as f:
+            lines = f.readlines()[-400:]
+    except OSError:
+        return ""
+    for line in reversed(lines):
+        hit = DEATH_WORDS.search(re.sub(r"\x1b\[[0-9;]*m", "", line).rstrip())
+        if hit and hit.group(1) == name and "<" not in line:
+            return hit.group(2)
+    return ""
 
 
 def log_stats():
