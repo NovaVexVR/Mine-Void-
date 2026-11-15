@@ -212,6 +212,26 @@ class Agent:
                 finally:
                     g.b("resume")
                 self.last_shot = time.time()
+        if now - getattr(self, "last_archer_check", 0) > 3 and g.overworld() \
+                and not g.count(lambda i: i == "bow"):
+            self.last_archer_check = now
+            archers = [e for e in g.hostiles(20)
+                       if e.type.rsplit(".", 1)[-1] in ("pillager", "skeleton", "stray", "bogged")]
+            shield = any(s.slot == 40 and s.item.endswith("shield")
+                         for s in m.player_inventory())
+            if archers and shield:
+                # Close in behind the shield: standing off, they shot us.
+                g.b("pause")
+                try:
+                    g.fight(radius=20, timeout=25)
+                finally:
+                    g.b("resume")
+                self.last_fight = time.time()
+            elif archers and self.interruptible and self.task and \
+                    self.task.get("skill") not in ("shelter", "dig_in", "wait_for_food"):
+                # Nothing to fight archers with: break off and take cover.
+                self.archers_seen = now
+                raise game.TaskChanged("archers")
         if now - self.last_fight > 1 and g.hostiles(4.5):
             # Baritone owns the camera while pathing, so pause it, fight
             # properly, then let it carry on. (Kill Aura helps as well.)
@@ -306,6 +326,13 @@ class Agent:
         forced = task.get("phase") == "forced"  # a test task: run it as is
         if forced:
             pass
+        elif time.time() - getattr(self, "archers_seen", 0) < 20 and g.overworld():
+            # Pillagers or skeletons in sight and no shield or bow: cover.
+            base = self.facts.get("base")
+            if base and math.dist(g.pos(), base) < 48:
+                task = {"id": "shelter", "skill": "shelter", "args": {}}
+            else:
+                task = {"id": "dig_in", "skill": "dig_in", "args": {}}
         elif death and death[0] and time.time() - death[1] < 240 \
                 and not any(len(d) > 4 and d[4] >= 43200 and math.dist(d[:3], death[0]) < 20
                             for d in self.facts.get("danger", [])) \
