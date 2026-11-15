@@ -6,6 +6,7 @@ Missing intermediate items (planks, sticks, table) are crafted recursively;
 missing raw materials are gathered through `gather_hook`.
 """
 import math
+import re
 import time
 
 import minescript as m
@@ -108,6 +109,72 @@ def clear_grid(g):
         g.click(slot, 0, "QUICK_MOVE")
 
 
+_book = {}  # item -> recipe display ids, from the client's recipe book
+
+
+def book_ids(g, item):
+    """Recipe-book entries whose result is `item` (cached per session)."""
+    # Built once, refreshed every 10 minutes (new recipes unlock as items
+    # turn up) - not on every miss: a full scan takes ~6 s, and doing it for
+    # each craft of something not in the book froze the bots.
+    if time.time() - _book.get("_built", 0) > 600:
+        _book.clear()
+        _book["_built"] = time.time()
+        try:
+            cols = g.mc.player.getRecipeBook().getCollections()
+            for i in range(cols.size()):
+                rs = cols.get(i).getRecipes()
+                for j in range(rs.size()):
+                    e = rs.get(j)
+                    text = str(e)
+                    k = text.find("result=")
+                    hit = re.search(r"minecraft:([a-z0-9_]+)", text[k:]) if k >= 0 else None
+                    if hit:
+                        _book.setdefault(hit.group(1), []).append(e.id())
+        except Exception as ex:
+            g.log(f"recipe book unreadable: {ex}")
+    return _book.get(item, []) if item != "_built" else []
+
+
+def book_craft(g, item, times, small):
+    """Craft through the recipe book: one request places the whole recipe
+    in the grid (the server checks the ingredients), then the result is
+    taken - about a second instead of 5-20 s of slot clicks. Falls back
+    (False) when the recipe is not in our book or nothing comes out."""
+    ids = book_ids(g, item)
+    if not ids:
+        return False
+    if small:
+        g.close_screen()
+    elif not open_table(g):
+        return False
+    g.sync_menu()
+    menu = g.menu()
+    pred = lambda i: i == item or (item == "planks" and i.endswith("_planks"))
+    before = g.count(pred)
+    made = 0
+    for _ in range(times):
+        placed = False
+        for rid in ids:  # (several recipes can make the same thing)
+            g.mc.gameMode.handlePlaceRecipe(menu.containerId, rid, False)
+            if g.wait_plain(lambda: not menu.getSlot(0).getItem().isEmpty(), 1.5):
+                placed = True
+                break
+        if not placed:
+            break
+        g.click(0, 0, "QUICK_MOVE")
+        time.sleep(0.3)
+        made += 1
+    if small:
+        clear_grid(g)
+    else:
+        g.close_screen()
+    after = g.count(pred)
+    if after > before:
+        g.log(f"crafted {item} (recipe book): {before} -> {after}")
+    return after > before and made >= times
+
+
 def craft(g, item, times=1, retries=3):
     """Craft `item` `times` times. Returns True if the output arrived."""
     pattern, key, _ = RECIPES[item]
@@ -129,6 +196,8 @@ def craft(g, item, times=1, retries=3):
                 return False
     else:
         return False
+    if book_craft(g, item, times, small):
+        return True
     if times > 1:
         # Keep every grid cell fed from a single stack: a cell cannot mix
         # e.g. oak and birch planks. Split into batches the first stack covers.
