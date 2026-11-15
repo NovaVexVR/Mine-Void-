@@ -1376,6 +1376,12 @@ def harvest(g, facts, radius=12):
             m.player_press_attack(False)
             time.sleep(0.2)
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
+    # Bread first: the team may be starving while the rest (soil, seeds,
+    # a new hoe) takes minutes. Some wheat stays unbaked once there is a
+    # pen: it is the breeding feed.
+    spare = g.count(lambda i: i == "wheat") - (6 if facts.get("pen") else 0)
+    if spare >= 3:
+        crafting.craft(g, "bread", spare // 3)
     if g.block(*centre) != "water":
         # without it the farmland dries out and the crops pop off
         if g.count(lambda i: i == "water_bucket") and pour_into_hole(g, centre, y):
@@ -1407,8 +1413,12 @@ def harvest(g, facts, radius=12):
                 g.break_block(*c, timeout=6)
             lay_soil(g, c, centre, (x - 8, x - 3), y)
     if not g.count(lambda i: i.endswith("_hoe")):
-        # no hoe, no farmland: 21 seeds sat unplanted
-        crafting.craft(g, "stone_hoe") or crafting.craft(g, "wooden_hoe")
+        # no hoe, no farmland: 21 seeds sat unplanted (wooden unless we
+        # carry stone: digging for it took the harvester out of the base)
+        if g.count(CLASSES["stone"]) >= 2:
+            crafting.craft(g, "stone_hoe")
+        else:
+            crafting.craft(g, "wooden_hoe")
     planted = 0
     for c in soil:
         above = g.block(c[0], y + 1, c[2])
