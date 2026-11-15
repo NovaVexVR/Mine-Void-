@@ -48,6 +48,10 @@
    {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
   ]},
+  {"id": "ranch", "title": "Animal pen", "tasks": [
+   {"id": "build_pen", "scope": "team", "slots": 1, "skill": "build_pen", "surface": true, "needs_fact": "base_exit", "requires": {"cobblestone": 24}, "args": {}, "fact": "pen", "note": "a 4x4 cobblestone-wall pen with a fence gate next to the top of the stairs"},
+   {"id": "ranch", "scope": "team", "slots": 1, "skill": "ranch", "surface": true, "needs_fact": "pen", "requires": {"wheat": 2}, "cooldown": 900, "args": {}, "note": "lure cows and sheep in with wheat and breed them; hunters only take the surplus"}
+  ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
    {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
   ]}

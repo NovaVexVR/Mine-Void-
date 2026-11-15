@@ -313,6 +313,17 @@ def craft(g, facts, item, count=1):
     return ok
 
 
+def spare_from_pen(e, facts):
+    """Wild animals are fair game; penned ones only beyond the breeding
+    stock (adults only: a calf drops nothing)."""
+    pen = facts.get("pen")
+    if not pen or not in_pen(e.position, pen):
+        return True
+    kind = e.type.split(".")[-1].split(":")[-1]
+    adults = penned(pen, kind) if kind in PEN_KINDS else []
+    return len(adults) > PEN_CULL and any(a.uuid == e.uuid for a in adults)
+
+
 def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None):
     """Kill animals until `count` items matching `item` are held. Animals
     near home get used up (they do not respawn), so hunters range twice
@@ -325,8 +336,9 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
         come_home(g, facts, leash=2 * LEASH)
         g.status = f"hunting {animals} for {item} {g.count(food)}/{count}"
         prey = [e for e in m.entities(type=f".*\\.({animals})$", max_distance=60,
-                                      sort="nearest", limit=4)
-                if e.position[1] > 55 or e.position[1] > g.pos()[1] - 4][:1]
+                                      sort="nearest", limit=8)
+                if (e.position[1] > 55 or e.position[1] > g.pos()[1] - 4)
+                and spare_from_pen(e, facts)][:1]
         if not prey:
             misses += 1
             if misses > 20:
@@ -1226,9 +1238,10 @@ def harvest(g, facts, radius=12):
             if g.block(c[0], y + 1, c[2]) == "wheat":
                 planted += 1
     g.stop()
-    wheat = g.count(lambda i: i == "wheat")
-    if wheat >= 3:
-        crafting.craft(g, "bread", wheat // 3)
+    # Some wheat stays unbaked once there is a pen: it is the breeding feed.
+    spare = g.count(lambda i: i == "wheat") - (6 if facts.get("pen") else 0)
+    if spare >= 3:
+        crafting.craft(g, "bread", spare // 3)
     g.log(f"harvest: {len(ripe)} ripe, {planted} plots growing, "
           f"{g.count(lambda i: i == 'bread')} bread")
     return {"farm_plots": planted}
@@ -1263,9 +1276,10 @@ def harvest_outdoor(g, facts, radius=12):
     finally:
         g.stop()
         g.b("set blocksToDisallowBreaking " + guard)
-    wheat = g.count(lambda i: i == "wheat")
-    if wheat >= 3:
-        crafting.craft(g, "bread", wheat // 3)
+    # Some wheat stays unbaked once there is a pen: it is the breeding feed.
+    spare = g.count(lambda i: i == "wheat") - (6 if facts.get("pen") else 0)
+    if spare >= 3:
+        crafting.craft(g, "bread", spare // 3)
     return True
 
 
@@ -1833,6 +1847,306 @@ def idle(g, facts):
     return True
 
 
+
+# ---------------------------------------------------------------------------
+# Animal pen: a 6x6 cobblestone-wall ring (4x4 inside) next to the top of
+# the base stairs, with a fence gate. Animals are lured in with wheat and
+# bred there, so meat, wool and leather stop depending on finding wild herds.
+
+PEN = 6
+PEN_KINDS = ("cow", "sheep")   # both follow and breed with wheat
+PEN_MIN, PEN_MAX, PEN_CULL = 2, 8, 4
+GROUND_OK = ("grass_block", "dirt", "coarse_dirt", "podzol", "rooted_dirt",
+             "sand", "gravel", "stone", "mud", "moss_block")
+
+
+def height_map(g, cx, cz, y, r):
+    """Ground height for every column within r of (cx, cz), scanning a
+    band around y (one block-list call per row)."""
+    ys = list(range(y + 14, y - 7, -1))
+    out = {}
+    for x in range(cx - r, cx + r + 1):
+        cells = [[x, yy, z] for z in range(cz - r, cz + r + 1) for yy in ys]
+        kinds = [short(k) for k in m.getblocklist(cells)]
+        for i, z in enumerate(range(cz - r, cz + r + 1)):
+            col = kinds[i * len(ys):(i + 1) * len(ys)]
+            for j, k in enumerate(col):
+                if k in AIR or k in ("short_grass", "tall_grass", "fern", "snow",
+                                     "large_fern", "leaf_litter") or k.endswith(
+                                         ("_flower", "_tulip", "dandelion", "poppy")):
+                    continue
+                out[(x, z)] = (ys[j], k, col[j - 1] if j else "air",
+                               col[j - 2] if j > 1 else "air")
+                break
+    return out
+
+
+def pen_ring(x0, z0):
+    cells = []
+    for i in range(PEN):
+        for c in ((x0 + i, z0), (x0 + i, z0 + PEN - 1), (x0, z0 + i), (x0 + PEN - 1, z0 + i)):
+            if c not in cells:
+                cells.append(c)
+    return cells
+
+
+def pen_site(g, facts):
+    """A flat, open 6x6 patch 5-16 blocks from the top of the stairs."""
+    ex, ey, ez = facts["base_exit"]
+    bx = facts["base"][0]
+    hm = height_map(g, ex, ez, ey, 18)
+    best = None
+    for x0 in range(ex - 17, ex + 12):
+        for z0 in range(ez - 17, ez + 12):
+            cx, cz = x0 + PEN / 2, z0 + PEN / 2
+            d = math.dist((cx, cz), (ex + .5, ez + .5))
+            if not 6 <= d <= 16:
+                continue
+            cols = [(x, z) for x in range(x0 - 1, x0 + PEN + 1)
+                    for z in range(z0 - 1, z0 + PEN + 1)]
+            if any(c not in hm for c in cols):
+                continue
+            # keep clear of the stairs and the exit
+            if any(abs(z - ez) <= 2 and bx <= x <= ex + 2 for x, z in cols):
+                continue
+            hs = [hm[c][0] for c in cols]
+            if max(hs) - min(hs) > 1:
+                continue
+            if any(hm[c][1] not in GROUND_OK or hm[c][2] not in AIR + (
+                    "short_grass", "tall_grass", "fern", "snow")
+                   for c in cols):
+                continue
+            score = d + 3 * (max(hs) - min(hs))
+            if best is None or score < best[0]:
+                best = (score, x0, z0)
+    if not best:
+        return None
+    _, x0, z0 = best
+    # the gate goes in the middle of the side facing the exit
+    sides = {(0, -1): (x0 + 2, z0), (0, 1): (x0 + 2, z0 + PEN - 1),
+             (-1, 0): (x0, z0 + 2), (1, 0): (x0 + PEN - 1, z0 + 2)}
+    (nx, nz), (gx, gz) = min(sides.items(),
+                             key=lambda s: math.dist(s[1], (ex, ez)))
+    gy = hm[(gx, gz)][0] + 1
+    out = (gx + nx, hm[(gx + nx, gz + nz)][0] + 1, gz + nz)
+    inside = (gx - nx, hm[(gx - nx, gz - nz)][0] + 1, gz - nz)
+    far = (gx - 3 * nx, hm[(gx - 3 * nx, gz - 3 * nz)][0] + 1, gz - 3 * nz)
+    return {"corner": [x0, z0], "gate": [gx, gy, gz], "out": list(out),
+            "in": list(inside), "far": list(far), "y": gy}, hm
+
+
+def in_pen(pos, pen):
+    x0, z0 = pen["corner"]
+    return (x0 + 1 <= pos[0] < x0 + PEN - 1 and z0 + 1 <= pos[2] < z0 + PEN - 1
+            and abs(pos[1] - pen["y"]) < 4)
+
+
+def animal_age(e):
+    import re
+    hit = re.search(r"Age:(-?\d+)", e.nbt or "")
+    return int(hit.group(1)) if hit else 0
+
+
+def penned(pen, kind=None, adults=True):
+    kinds = kind or "|".join(PEN_KINDS)
+    out = [e for e in m.entities(type=f".*\\.({kinds})$", max_distance=96, nbt=True)
+           if in_pen(e.position, pen)]
+    return [e for e in out if animal_age(e) >= 0] if adults else out
+
+
+def build_pen(g, facts):
+    """Fence a 4x4 pen next to the stairs with cobblestone walls and a gate,
+    placing every wall from outside so the builder never shuts itself in."""
+    if facts.get("pen"):
+        return {"pen": facts["pen"]}
+    ex, ey, ez = facts["base_exit"]
+    g.status = "looking for a spot for the animal pen"
+    if not g.goto(ex, ey, ez, timeout=240, near=2):
+        return False
+    found = pen_site(g, facts)
+    if not found:
+        g.log("pen: no flat open spot near the stairs")
+        return False
+    pen, hm = found
+    x0, z0 = pen["corner"]
+    ring = [c for c in pen_ring(x0, z0) if c != (pen["gate"][0], pen["gate"][2])]
+    need = sum(1 for x, z in ring if g.block(x, hm[(x, z)][0] + 1, z) != "cobblestone_wall")
+    walls = g.count(lambda i: i == "cobblestone_wall")
+    if walls < need and not crafting.craft(g, "cobblestone_wall", math.ceil((need - walls) / 6)):
+        g.log("pen: could not craft the walls")
+        return False
+    gate = next((i for i in g.inv() if i.endswith("_fence_gate")), None)
+    if gate is None:
+        planks = max((i for i, n in g.inv().items() if i.endswith("_planks") and n >= 2),
+                     key=lambda i: g.inv()[i], default=None)
+        if planks is None:
+            if not g.count(CLASSES["log"]) and not gather(g, facts, "logs", "log", 2, timeout=300):
+                return False
+            crafting.craft(g, "planks", 1)
+            planks = max((i for i in g.inv() if i.endswith("_planks")),
+                         key=lambda i: g.inv()[i])
+        gate = planks.replace("_planks", "_fence_gate")
+        if not crafting.craft(g, gate):
+            g.log(f"pen: could not craft a {gate}")
+            return False
+    g.log(f"pen: building at {[x0, pen['y'], z0]}, gate at {pen['gate']}")
+    missed = 0
+    for x, z in ring:
+        g.status = f"building the animal pen ({ring.index((x, z)) + 1}/{len(ring)})"
+        y = hm[(x, z)][0] + 1
+        if g.block(x, y, z) == "cobblestone_wall":
+            continue
+        # stand just outside the ring, never inside it
+        sx = x + (1 if x == x0 + PEN - 1 else -1 if x == x0 else 0)
+        sz = z + (1 if z == z0 + PEN - 1 else -1 if z == z0 else 0)
+        stand = (sx, hm.get((sx, sz), (y - 1,))[0] + 1, sz)
+        if g.block(x, y, z) not in AIR:
+            g.break_block(x, y, z, timeout=6)  # grass, a flower
+        if not g.place_at("cobblestone_wall", x, y, z, stand=stand):
+            missed += 1
+    gx, gy, gz = pen["gate"]
+    if not g.block(gx, gy, gz).endswith("_fence_gate"):
+        if g.block(gx, gy, gz) not in AIR:
+            g.break_block(gx, gy, gz, timeout=6)
+        if not g.place_at(gate, gx, gy, gz, stand=tuple(pen["out"])):
+            missed += 1
+    g.stop()
+    if missed > 1:
+        g.log(f"pen: {missed} gaps left")
+        return False
+    g.log("pen: done")
+    return {"pen": pen}
+
+
+def set_gate(g, pen, open_it):
+    gx, gy, gz = pen["gate"]
+    state = m.getblock(gx, gy, gz) or ""
+    if "fence_gate" not in state:
+        return False
+    if ("open=true" in state) == open_it:
+        return True
+    if math.dist(g.pos(), (gx + .5, gy + .5, gz + .5)) > 3.5:
+        g.goto(*pen["out"], timeout=30)
+    g.use_on(gx + 0.5, gy + 0.6, gz + 0.5)
+    return ("open=true" in (m.getblock(gx, gy, gz) or "")) == open_it
+
+
+def leave_pen(g, pen):
+    """Out through the gate and shut it, wheat out of hand so nothing
+    follows."""
+    g.select(lambda i: i.endswith("_sword")) or g.select(lambda i: i != "wheat")
+    g.sleep(1.5)
+    set_gate(g, pen, True)
+    g.goto(*pen["out"], timeout=20)
+    g.stop()
+    set_gate(g, pen, False)
+
+
+def lure(g, facts, pen, kind, timeout=300):
+    """Walk a wild animal into the pen, holding wheat so it follows."""
+    wheat = lambda i: i == "wheat"
+    wild = lambda r: [e for e in m.entities(type=f".*\\.{kind}$", max_distance=r,
+                                            sort="nearest", nbt=True)
+                      if not in_pen(e.position, pen) and animal_age(e) >= 0
+                      and e.position[1] > 55]
+    herd = wild(64)
+    if not herd:
+        spots = [a for a in facts.get("_animals", []) if a[0] == kind
+                 and a[2] > 55 and math.dist(a[1:], pen["out"]) < 120]
+        if not spots:
+            return False
+        a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
+        g.status = f"looking for a {kind} to bring to the pen"
+        g.goto_near(*a[1:], radius=6, timeout=120)
+        herd = wild(32)
+    if not herd:
+        return False
+    ox, oy, oz = pen["out"]
+    end = time.time() + timeout
+    g.b("set allowSprint false")  # animals cannot keep up with a sprint
+    try:
+        x, y, z = (math.floor(v) for v in herd[0].position)
+        g.status = f"luring a {kind} to the pen"
+        g.select(wheat)
+        g.goto_near(x, y, z, radius=2, timeout=60)
+        g.stop()
+        while time.time() < end:
+            g.select(wheat)
+            here = g.pos()
+            near = [e for e in wild(8)]
+            if not near:
+                g.log(f"lure: lost the {kind}")
+                return False
+            if math.dist(here, near[0].position) > 4:
+                g.b("stop")
+                g.sleep(1.5)  # let it catch up
+                continue
+            d = math.dist((here[0], here[2]), (ox + .5, oz + .5))
+            if d < 1.3:
+                break
+            if d < 6:
+                g.b(f"goto {ox} {oy} {oz}")
+            else:
+                k = 5 / d
+                g.b("goto %d %d" % (math.floor(here[0] + (ox + .5 - here[0]) * k),
+                                    math.floor(here[2] + (oz + .5 - here[2]) * k)))
+            g.sleep(1.2)
+        else:
+            return False
+        g.stop()
+        before = len(penned(pen, kind, adults=False))
+        set_gate(g, pen, True)
+        g.select(wheat)
+        g.goto(*pen["far"], timeout=20)
+        g.stop()
+        g.wait(lambda: len(penned(pen, kind, adults=False)) > before, 15, 1)
+        leave_pen(g, pen)
+        got = len(penned(pen, kind, adults=False)) > before
+        g.log(f"lure: {'brought' if got else 'failed to bring'} a {kind} into the pen")
+        return got
+    finally:
+        g.b("set allowSprint true")
+        g.stop()
+
+
+def ranch(g, facts):
+    """Keep two or more of each kind in the pen and breed them with wheat."""
+    pen = facts.get("pen")
+    wheat = lambda i: i == "wheat"
+    if not pen or g.count(wheat) < 2:
+        return False
+    g.status = "going to the animal pen"
+    if not g.goto(*pen["out"], timeout=240, near=1):
+        return False
+    for kind in PEN_KINDS:
+        if len(penned(pen, kind)) < PEN_MIN and g.count(wheat) >= 2:
+            lure(g, facts, pen, kind)
+            g.goto(*pen["out"], timeout=240, near=1)
+    pairs = {}
+    for kind in PEN_KINDS:
+        everyone = penned(pen, kind, adults=False)
+        ready = [e for e in everyone if animal_age(e) == 0]
+        if len(everyone) < PEN_MAX and len(ready) >= 2:
+            pairs[kind] = ready[:2]
+    bred = 0
+    if pairs and g.count(wheat) >= 2:
+        set_gate(g, pen, True)
+        g.goto(*pen["in"], timeout=20)
+        for kind, two in pairs.items():
+            if g.count(wheat) < 2:
+                break
+            g.status = f"breeding {kind}s"
+            fed = 0
+            for e in two:
+                g.select(wheat)
+                fed += bool(g.use_on_entity(e, height=0.8))
+            bred += fed == 2
+        leave_pen(g, pen)
+    counts = {k: len(penned(pen, k, adults=False)) for k in PEN_KINDS}
+    g.log(f"ranch: pen holds {counts}, bred {bred} pair(s)")
+    return {"pen_animals": counts}
+
+
 SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "build_base": build_base, "smelt": smelt, "build_farm": build_farm,
           "deliver": deliver, "assist": assist, "idle": idle, "receive": receive,
@@ -1845,4 +2159,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "branch_mine": branch_mine,
     "make_bow": make_bow,
     "water_farm": water_farm,
+    "build_pen": build_pen,
+    "ranch": ranch,
           "harvest": harvest}

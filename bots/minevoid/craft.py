@@ -48,6 +48,10 @@ for _c in ("white orange magenta light_blue yellow lime pink gray light_gray "
 for _w in ("oak spruce birch jungle acacia dark_oak mangrove cherry pale_oak "
            "bamboo crimson warped").split():
     RECIPES[f"{_w}_door"] = (("PP", "PP", "PP"), {"P": f"{_w}_planks"}, 3)
+    RECIPES[f"{_w}_fence_gate"] = (("SPS", "SPS"), {"P": f"{_w}_planks", "S": "stick"}, 1)
+
+# Pen walls: cobblestone is what every bot carries plenty of.
+RECIPES["cobblestone_wall"] = (("CCC", "CCC"), {"C": "cobblestone"}, 6)
 
 # Raw materials a bot can go and get by itself: class -> (block group, count pad)
 RAW = {"log": "logs", "stone": "stone"}

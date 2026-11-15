@@ -141,8 +141,9 @@ live runs; see Status for details.
 7. Ranged combat: bow and arrows (string from spiders, feathers from
    chickens - both pile up in the chest) for skeletons, pillagers and
    creepers; a shield for everyone before going underground
-8. Animal pens next to the base: lure cows/sheep with wheat, breed them
-   (steady meat, wool, leather for books)
+8. Animal pen next to the base stairs: a 4x4 cobblestone-wall pen with a
+   fence gate; cows/sheep lured in with wheat and bred, hunters only take
+   the surplus (steady meat, wool, leather for books) – built, in testing
 
 **Stage 2 – mid game**
 9. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
