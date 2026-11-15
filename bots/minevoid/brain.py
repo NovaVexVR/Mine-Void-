@@ -338,7 +338,9 @@ class Agent:
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
         elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night() \
-                and g.overworld():
+                and g.overworld() and task["skill"] not in ("harvest", "fish"):
+            # (Not instead of harvesting or fishing: those are food too, and
+            # the hunt kept replacing a harvest of ripe wheat.)
             task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3, "fed": 16},
                     "surface": True}
         exit_ = self.facts.get("base_exit")
