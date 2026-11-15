@@ -511,6 +511,13 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
             last_progress = time.time()
         g.sleep(1)
     g.stop()
+    if blocks == "logs" and not g.is_night():
+        # The leaves of the trees just cut drop saplings as they decay:
+        # wait a little and pick them up for the tree farm (the trees
+        # around the base were all gone and nobody had saplings).
+        g.status = "picking up saplings"
+        g.sleep(20)
+        pick_up_drops(g, g.pos(), 8)
     return True
 
 
