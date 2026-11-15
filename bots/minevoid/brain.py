@@ -151,7 +151,11 @@ class Agent:
             self.last_death_at = time.time()
             same = ddim == g.dim()
             self.death = (pos, time.time()) if same and ddim == "overworld" else None
-            in_water = same and g.block(*pos) in ("water", "bubble_column")
+            # (Read the block if we can; after respawning far away we
+            # cannot, so a lungful of air left decides: a bot went back to
+            # where it had drowned and drowned again.)
+            in_water = (same and g.block(*pos) in ("water", "bubble_column")) \
+                or getattr(self, "last_air", 300) < 150
             where = "" if ddim == "overworld" else f" in {ddim}"
             self.report(event=f"died at {pos}" + (" in water" if in_water else "") + where)
             underground = pos[1] < 55
@@ -169,6 +173,8 @@ class Agent:
         self.was_dead = dead
         if dead:
             return
+        if not died:
+            self.last_air = g.mc.player.getAirSupply()
         if g.mc.player.getAirSupply() < 120:
             # Drowning (underwater cave, flooded tunnel): stop pathing and
             # swim straight up until we can breathe again.
