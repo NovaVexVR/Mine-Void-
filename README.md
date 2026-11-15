@@ -121,8 +121,8 @@ the plugins and the client mods on the first run, restores the newest
 world snapshot from `snapshots/` (the cloud trial's world: base, farm
 rooms, mine shaft, tree room, the bots' beds and inventories, and the
 coordinator's memory of them), and starts the server, the coordinator and
-the bots. Each bot opens a small game window; `HEADLESS=1 ./play.sh` runs
-them on a virtual display instead. Ctrl+C stops everything. The dashboard
+the bots, headless (each on its own virtual display; `WINDOWS=1 ./play.sh`
+shows them in small game windows instead). Ctrl+C stops everything. The dashboard
 is at http://127.0.0.1:8765/. Budget about a core and 1.5 GB RAM per bot
 plus ~3 GB for the server.
 

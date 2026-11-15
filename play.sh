@@ -4,7 +4,10 @@
 #
 #     ./play.sh            # server + coordinator + 3 bots
 #     ./play.sh 5          # ... with 5 bots
-#     HEADLESS=1 ./play.sh # bots on a virtual display instead of windows
+#     WINDOWS=1 ./play.sh  # show each bot in a small game window
+#
+# Bots run headless by default: each on its own virtual display (Xvfb),
+# no windows, nothing grabbing the mouse.
 #
 # The first run installs what is missing (Java 21, Python, Xvfb), downloads
 # Paper, the plugins and the client mods, and restores the newest world
@@ -26,8 +29,7 @@ missing=()
 [ -n "$(java21)" ] || missing+=(java)
 command -v python3 >/dev/null || missing+=(python)
 command -v curl >/dev/null || missing+=(curl)
-[ -n "${HEADLESS:-}" ] && ! command -v Xvfb >/dev/null && missing+=(xvfb)
-[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && ! command -v Xvfb >/dev/null && missing+=(xvfb)
+[ -z "${WINDOWS:-}" ] && ! command -v Xvfb >/dev/null && missing+=(xvfb)
 if [ ${#missing[@]} -gt 0 ]; then
   echo "installing: ${missing[*]}"
   if command -v pacman >/dev/null; then
@@ -67,12 +69,11 @@ stop() {
   exit 0
 }
 trap stop INT TERM
-# Small game windows on a desktop; a virtual display with HEADLESS=1 or
-# when there is no desktop session at all.
-if [ -n "${HEADLESS:-}" ] || [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
-  export LAUNCH_FLAGS="--headless"
-else
+# Headless unless WINDOWS=1 (and there is a desktop to show them on).
+if [ -n "${WINDOWS:-}" ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
   export LAUNCH_FLAGS="--window"
+else
+  export LAUNCH_FLAGS="--headless"
 fi
 scripts/start.sh "$N"
 echo
