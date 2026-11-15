@@ -982,8 +982,13 @@ class Game:
         on the other side of the base wall made bots dig through the wall
         to reach it (and hit the wall blocks in between)."""
         out = []
+        end = self.dim() == "the_end"
         for e in m.entities(max_distance=radius, sort="nearest"):
-            if e.type.rsplit(".", 1)[-1] not in HOSTILES:
+            kind = e.type.rsplit(".", 1)[-1]
+            if kind not in HOSTILES and not (
+                    # The End is full of endermen: one this close has been
+                    # provoked and is attacking, so fight back.
+                    end and kind == "enderman" and math.dist(e.position, self.pos()) < 3):
                 continue
             if visible and math.dist(e.position, self.pos()) > 2.5:
                 # (right next to us it counts anyway: a pillager standing in
