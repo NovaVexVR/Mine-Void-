@@ -39,6 +39,8 @@ RECIPES = {
     "blaze_powder": (("R",), {"R": "blaze_rod"}, 2),
     "ender_eye": (("PB",), {"P": "ender_pearl", "B": "blaze_powder"}, 1),
     "golden_helmet": (("GGG", "G G"), {"G": "gold_ingot"}, 1),
+    "leather_chestplate": (("L L", "LLL", "LLL"), {"L": "leather"}, 1),
+    "leather_boots": (("L L", "L L"), {"L": "leather"}, 1),
     "iron_helmet": (("III", "I I"), {"I": "iron_ingot"}, 1),
     "iron_chestplate": (("I I", "III", "III"), {"I": "iron_ingot"}, 1),
     "iron_leggings": (("III", "I I", "I I"), {"I": "iron_ingot"}, 1),
