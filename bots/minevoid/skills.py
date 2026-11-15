@@ -1368,14 +1368,15 @@ def harvest(g, facts, radius=12):
     base = facts["base"]
     x, y, z = base
     centre, corners, soil = farm_room_cells(base)
-    # Only plots that are dug out (open above): the rest of a room still
-    # being enlarged is solid rock, and trying to soil it cost minutes.
-    soil = [c for c in soil if g.block(c[0], y + 1, c[2]) in AIR + ("wheat",)]
     g.status = "harvesting the farm"
     if not g.goto(x - 4, y + 1, z, timeout=180, near=1):
         if not g.goto(*base, timeout=180, near=1):
             g.log(f"harvest: could not get to the farm (at {g.block_pos()})")
             return False
+    # Only plots that are dug out (open above): the rest of a room still
+    # being enlarged is solid rock, and trying to soil it cost minutes.
+    # (Read here, at the farm: from afar the chunks are not loaded.)
+    soil = [c for c in soil if g.block(c[0], y + 1, c[2]) in AIR + ("wheat",)]
     seeds = lambda i: i == "wheat_seeds"
     ripe = [c for c in soil if (m.getblock(c[0], y + 1, c[2]) or "").startswith(
         "minecraft:wheat[age=7")]
