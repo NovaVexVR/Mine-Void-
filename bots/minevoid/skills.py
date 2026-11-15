@@ -2131,6 +2131,7 @@ def make_torches(g, facts, count=12):
     without light, and the team had found no coal at all."""
     has = lambda i: g.count(lambda j: j == i)
     if has("torch") >= count:
+        light_farm(g, facts)
         return True
     need = math.ceil((count - has("torch")) / 4)
     if g.count(CLASSES["coal"]) < need:
@@ -2143,7 +2144,32 @@ def make_torches(g, facts, count=12):
     if n:
         crafting.craft(g, "torch", n)
     g.log(f"torches: {has('torch')} made from charcoal")
+    light_farm(g, facts)
     return has("torch") > 0
+
+
+def light_farm(g, facts):
+    """Torches on the farm room's corners (the wheat dies in the dark)."""
+    if not facts.get("farm_room") or not g.count(lambda i: i == "torch"):
+        return
+    x, y, z = facts["base"]
+    _, corners, _ = farm_room_cells((x, y, z))
+    dark = [c for c in corners if g.block(*c) not in ("torch", "wall_torch")]
+    if not dark:
+        return
+    g.status = "lighting the farm room"
+    g.goto(x - 4, y + 1, z, timeout=180, near=1)
+    for c in dark:
+        if not g.count(lambda i: i == "torch"):
+            break
+        if math.dist(g.pos(), (c[0] + .5, y + .5, c[2] + .5)) > 3.5:
+            g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
+            g.stop()
+        if g.block(*c) not in AIR:
+            g.select(lambda i: i.endswith(("_pickaxe", "_shovel")))
+            g.break_block(*c, timeout=6)
+        g.place_at("torch", *c)
+    g.log(f"farm lit: {sum(g.block(*c) in ('torch', 'wall_torch') for c in corners)}/4 corners")
 
 
 def wait_for_food(g, facts, timeout=180):
