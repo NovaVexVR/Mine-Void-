@@ -167,6 +167,78 @@ def make_books(g, facts, books=3):
     return has("book") > 0
 
 
+SHAFT_TURNS = ((1, 0), (0, 1), (0, -1), (-1, 0))
+
+
+def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=1500):
+    """Dig the team's own staircase down to a mine level, once: 1-wide,
+    3-high steps going down one block per step, a torch every ~10 blocks,
+    turning aside at lava or water. Walking to the mine through caves got
+    a bot killed by a zombie on the way; this way down is lit and known.
+    Progress is kept in `<name>_shaft`, the bottom becomes fact `name`."""
+    if facts.get(name):
+        return {name: facts[name]}
+    if not g.count(lambda i: i.endswith("_pickaxe")):
+        return False
+    prog = facts.get(f"{name}_shaft")
+    if prog:
+        cx, cy, cz, dx, dz = prog
+    else:
+        sx, sy, sz = facts[start]
+        dx, dz = 1, 0
+        cx, cy, cz = sx, sy, sz
+    g.status = f"going to the {name} shaft"
+    if not g.goto(cx, cy, cz, timeout=400, near=1):
+        g.log(f"shaft: could not reach {[cx, cy, cz]}")
+        return False
+    end, last_torch, turns = time.time() + timeout, None, 0
+    while cy > to_y and time.time() < end:
+        g.status = f"digging the {name} shaft (y={cy}, down to {to_y})"
+        nx, ny, nz = cx + dx, cy - 1, cz + dz
+        dig = [(nx, ny, nz), (nx, ny + 1, nz), (nx, ny + 2, nz)]
+        side = [(nx + a, yy, nz + b) for a, b in ((dz, dx), (-dz, -dx))
+                for yy in (ny, ny + 1, ny + 2)]
+        look = dig + side + [(nx + dx, ny, nz + dz), (nx + dx, ny + 1, nz + dz),
+                             (nx, ny - 1, nz), (nx, ny + 3, nz)]
+        kinds = [short(k) for k in m.getblocklist([list(c) for c in look])]
+        if any(k in HAZARDS for k in kinds):
+            # lava or water ahead: try another heading from here
+            turns += 1
+            if turns > 3:
+                g.log(f"shaft: boxed in by liquid at {[cx, cy, cz]}")
+                break
+            i = SHAFT_TURNS.index((dx, dz)) if (dx, dz) in SHAFT_TURNS else 0
+            dx, dz = SHAFT_TURNS[(i + 1) % 4]
+            continue
+        for c in dig:
+            for _ in range(4):  # gravel and sand fall in
+                if g.block(*c) in AIR:
+                    break
+                g.select(lambda i: i.endswith("_pickaxe"))
+                if not g.break_block(*c, timeout=8):
+                    break
+        if any(g.block(*c) not in AIR for c in dig):
+            g.log(f"shaft: could not dig at {[nx, ny, nz]}")
+            break
+        if g.block(nx, ny - 1, nz) in AIR + ("water", "lava"):
+            # a cave below the step: floor it over
+            filler = next((f for f in FILLERS if g.count(lambda j, f=f: j == f)), None)
+            if not filler or not g.place_against(filler, nx, ny - 1, nz):
+                g.log(f"shaft: open drop at {[nx, ny - 1, nz]}")
+                break
+        if not g.goto(nx, ny, nz, timeout=15):
+            break
+        cx, cy, cz, turns = nx, ny, nz, 0
+        last_torch = light_the_way(g, last_torch)
+        g.pending_facts[f"{name}_shaft"] = [cx, cy, cz, dx, dz]
+    g.stop()
+    if cy <= to_y:
+        g.log(f"shaft: {name} reached at {[cx, cy, cz]}")
+        return {name: [cx, cy, cz], f"{name}_shaft": [cx, cy, cz, dx, dz]}
+    g.log(f"shaft: {name} shaft down to y={cy}")
+    return False
+
+
 def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
                 length=24, timeout=900, level=16, name="mine"):
     """Mine ore from the team's own branch mine instead of wandering into
@@ -2263,6 +2335,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "make_bow": make_bow,
     "water_farm": water_farm,
     "build_pen": build_pen,
+    "dig_shaft": dig_shaft,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}

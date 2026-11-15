@@ -49,7 +49,8 @@
    {"id": "smelt_trip", "at_base": true, "scope": "each", "skill": "smelt", "preempt": true, "requires": {"raw_iron": 3}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
    {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}, {"leather": 8}, {"book": 1}, {"ender_pearl": 1}, {"blaze_rod": 1}, {"obsidian": 1}, {"ender_eye": 1}, {"gold_ingot": 1}, {"lapis_lazuli": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},
-   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
+   {"id": "mine_shaft", "scope": "team", "slots": 1, "skill": "dig_shaft", "requires": {"stone_pickaxe|iron_pickaxe": 1}, "needs_fact": "base_exit", "args": {"start": "base_exit", "to_y": 16, "name": "mine"}, "fact": "mine", "note": "a lit staircase from the top of the base stairs down to y=16: walking to the mine through caves got a bot killed"},
+   {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "needs_fact": "mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
   ]},
   {"id": "ranch", "title": "Animal pen", "tasks": [
@@ -57,7 +58,8 @@
    {"id": "ranch", "scope": "team", "slots": 1, "skill": "ranch", "surface": true, "needs_fact": "pen", "requires": {"wheat": 2}, "cooldown": 900, "args": {}, "note": "lure cows and sheep in with wheat and breed them; hunters only take the surplus"}
   ]},
   {"id": "diamonds", "title": "Diamonds", "tasks": [
-   {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"},
+   {"id": "deep_shaft", "scope": "team", "slots": 1, "skill": "dig_shaft", "requires": {"iron_pickaxe": 1}, "needs_fact": "mine", "args": {"start": "mine", "to_y": -58, "name": "deep_mine"}, "fact": "deep_mine", "note": "the staircase carries on from the iron mine down to diamond level"},
+   {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "needs_fact": "deep_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"},
    {"id": "diamond_pickaxe", "at_base": true, "scope": "team", "slots": 1, "skill": "craft_from_storage", "storage_has": {"diamond": 3}, "args": {"item": "diamond_pickaxe", "material": "diamond", "cost": 3}, "note": "the only pickaxe that mines obsidian (portal, enchanting table)"}
   ]},
   {"id": "portal", "title": "Obsidian and the nether portal", "tasks": [
