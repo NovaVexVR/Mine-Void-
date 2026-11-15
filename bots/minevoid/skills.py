@@ -762,7 +762,9 @@ def seal_in(g):
 def dig_in(g, facts):
     """Badly hurt with mobs about: hide underground, eat, heal up."""
     g.status = "hurt - digging in to recover"
-    seal_in(g)
+    if not g.in_rooms(g.pos()):
+        seal_in(g)  # (in the base already: no digging - the guard forbids it
+        #              and the bot stood stuck in the doorway for minutes)
     g.wait(lambda: g.health() <= 0 or (g.health() >= 16 and not g.hostiles(10)),
            240, 2)
     return True
@@ -1349,19 +1351,30 @@ def harvest(g, facts, radius=12):
     seeds = lambda i: i == "wheat_seeds"
     ripe = [c for c in soil if (m.getblock(c[0], y + 1, c[2]) or "").startswith(
         "minecraft:wheat[age=7")]
+    def ripe_at(pos):
+        return (m.getblock(*pos) or "").startswith("minecraft:wheat[age=7")
+
     for c in ripe:
         g.status = f"harvesting the farm ({len(ripe)} ripe)"
-        if math.dist(g.pos(), (c[0] + .5, y + 1.5, c[2] + .5)) > 3.5:
-            g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
-            g.stop()
-        m.player_look_at(c[0] + 0.5, y + 1.25, c[2] + 0.5)
-        time.sleep(0.25)
-        hit = m.player_get_targeted_block(4.5)
-        if not hit or list(hit.position) != [c[0], y + 1, c[2]]:
-            continue  # not on the wheat: never swing at the soil or walls
-        m.player_press_attack(True)
-        time.sleep(0.15)  # (no background tick while attack is held)
-        m.player_press_attack(False)
+        target = [c[0], y + 1, c[2]]
+        for attempt in range(4):
+            if not ripe_at(target):
+                break  # (cut already, as another plot's neighbour)
+            if attempt == 2 or math.dist(g.pos(), (c[0] + .5, y + 1.5, c[2] + .5)) > 3.5:
+                # Across the field the crosshair lands on the plants in
+                # front: from right next to it nothing is in the way.
+                g.goto_near(c[0], y + 1, c[2], radius=1, timeout=20)
+                g.stop()
+            m.player_look_at(c[0] + 0.5, y + 1.25, c[2] + 0.5)
+            time.sleep(0.25)
+            hit = m.player_get_targeted_block(4.5)
+            pos = list(hit.position) if hit else None
+            if not pos or not (pos == target or (pos[1] == y + 1 and ripe_at(pos))):
+                continue  # never swing at soil, walls or unripe wheat
+            m.player_press_attack(True)
+            time.sleep(0.15)  # (no background tick while attack is held)
+            m.player_press_attack(False)
+            time.sleep(0.2)
     pick_up_drops(g, (centre[0], y + 1, centre[2]), 5)
     if g.block(*centre) != "water":
         # without it the farmland dries out and the crops pop off
