@@ -843,6 +843,14 @@ def recover(g, facts, pos):
     while time.time() < end and math.dist(g.pos(), pos) > 1.5 and g.busy():
         g.sleep(1)
         if math.dist(g.pos(), pos) < 24:
+            cells = [[x + a, y + b, z + c] for a in (-2, 0, 2) for b in (-1, 0, 1)
+                     for c in (-2, 0, 2)]
+            if sum(short(k) == "water" for k in m.getblocklist(cells)) >= 3:
+                # Gear in the water: the Drowned there killed Void2 a second
+                # time when it came back for it.
+                g.stop()
+                g.log(f"recover: the drop at {pos} is in water; leaving it")
+                return True
             guard = [e for e in g.hostiles(48, visible=False)
                      if math.dist(e.position, pos) < 20]  # (pillagers shoot from afar)
             if guard:
