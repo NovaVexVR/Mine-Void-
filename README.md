@@ -112,6 +112,9 @@ after dying.
 the CPU, so budget roughly **one core and 1.5 GB RAM per bot** plus the
 server. Bots only need to reach the coordinator URL (`MINEVOID_COORD`) and
 the server (`MC_SERVER`), so they can be spread over several machines.
+Before opening the coordinator to the network (`COORD_HOST=0.0.0.0`), set a
+shared secret: `COORD_TOKEN=...` for the coordinator and the same value as
+`MINEVOID_TOKEN` for every bot; requests without it get a 403.
 
 ### Developing
 
@@ -190,7 +193,7 @@ the blaze fight, enderman hunting, finding the portal room, the End.
 * A small Fabric mod for instant inventory work (crafting via Minescript
   reflection takes 5-20 s)
 * Bots on your own machines: coordinator reachable over the network with a
-  token, launcher for your OS
+  token (done), launcher for your OS
 * More than three bots; dashboard with death and anti-cheat stats
 
 ## Status

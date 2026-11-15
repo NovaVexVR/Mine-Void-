@@ -73,8 +73,10 @@ class Agent:
                     task_id=getattr(self, "assigned", None),
                     animals=self.sightings(),
                     **extra)
-        req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(),
-                                     {"Content-Type": "application/json"})
+        headers = {"Content-Type": "application/json"}
+        if os.environ.get("MINEVOID_TOKEN"):
+            headers["X-Minevoid-Token"] = os.environ["MINEVOID_TOKEN"]
+        req = urllib.request.Request(COORD + "/report", json.dumps(body).encode(), headers)
         try:
             reply = json.load(HTTP.open(req, timeout=5))
         except OSError as e:

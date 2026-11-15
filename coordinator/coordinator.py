@@ -473,7 +473,18 @@ def make_handler(co):
             self.end_headers()
             self.wfile.write(data)
 
+        def authorised(self):
+            # Bots on other machines: set COORD_TOKEN here and MINEVOID_TOKEN
+            # on each client; requests without it are refused.
+            token = os.environ.get("COORD_TOKEN")
+            if not token or self.headers.get("X-Minevoid-Token") == token:
+                return True
+            self.send_error(403)
+            return False
+
         def do_GET(self):
+            if not self.authorised():
+                return
             st = co.state()
             if self.path == "/state":
                 return self.send(st)
@@ -486,6 +497,8 @@ def make_handler(co):
             self.send((PAGE % (st["goal"], "\n".join(lines))).encode(), "text/html")
 
         def do_POST(self):
+            if not self.authorised():
+                return
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             if self.path == "/report":
                 return self.send(co.report(body))
