@@ -40,6 +40,14 @@ def come_home(g, facts, force=False, leash=LEASH):
     return True
 
 
+def near_danger(facts, pos, radius=40):
+    """Within `radius` of a live danger spot (a teammate's recent death)."""
+    now = time.time()
+    return any(now - d[3] < (d[4] if len(d) > 4 else 43200)
+               and math.dist(d[:3], pos) < radius
+               for d in facts.get("danger", []))
+
+
 def avoid_danger(g, facts, radius=28):
     """Leave the area of a teammate's recent underground death: Baritone
     mines the nearest exposed ore, which kept leading bots back into the
@@ -537,7 +545,8 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
                 if (e.position[1] > 55 or e.position[1] > g.pos()[1] - 4)
                 and e.uuid not in escaped and spare_from_pen(e, facts)
                 # (a hunter chased a swimming animal into a lake and drowned)
-                and g.block(*[math.floor(v) for v in e.position]) != "water"][:1]
+                and g.block(*[math.floor(v) for v in e.position]) != "water"
+                and not near_danger(facts, e.position)][:1]
         if not prey:
             misses += 1
             if misses > 20:
@@ -549,7 +558,10 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
             spots = [a for a in facts.get("_animals", [])
                      if a[0] in kinds and math.dist(a[1:], home) < 2 * LEASH
                      and a[2] > 55
-                     and tuple(a[1:]) not in visited]
+                     and tuple(a[1:]) not in visited
+                     # (Void1 went after a sighting by the lake where two
+                     # teammates had drowned, and drowned there too)
+                     and not near_danger(facts, a[1:])]
             if spots:
                 a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
                 visited.add(tuple(a[1:]))
