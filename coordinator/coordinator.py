@@ -396,7 +396,7 @@ class Coordinator:
                         p = None
                     # (Lake beds expose ore: miners dived in after it and
                     # drowned fighting the Drowned.)
-                    if p and (p[1] < 55 or ev.endswith("in water")):
+                    if p and " in the_" not in ev and (p[1] < 55 or ev.endswith("in water")):
                         now = time.time()
                         self.facts["danger"] = [d for d in self.facts.get("danger", [])
                                                 if now - d[3] < 43200][-11:] + [p + [now]]

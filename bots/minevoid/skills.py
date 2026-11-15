@@ -24,6 +24,8 @@ LEASH = 160  # blocks from home a bot may wander while working
 def come_home(g, facts, force=False, leash=LEASH):
     """Keep the team together: if we strayed beyond the leash, walk back
     towards home (the base, or world spawn before there is one)."""
+    if not g.overworld():
+        return False  # (home is an overworld place)
     home = facts.get("base") or m.world_info().spawn
     here = g.pos()
     if not force and math.dist(here[::2], home[::2]) <= leash:
@@ -42,6 +44,8 @@ def avoid_danger(g, facts, radius=28):
     """Leave the area of a teammate's recent underground death: Baritone
     mines the nearest exposed ore, which kept leading bots back into the
     same dark cave. Moving away makes other ore the nearest."""
+    if not g.overworld():
+        return False
     here = g.pos()
     spots = [d[:3] for d in facts.get("danger", [])
              if time.time() - d[3] < 43200 and math.dist(d[:3], here) < radius]

@@ -15,7 +15,6 @@ import traceback
 import urllib.request
 
 import minescript as m
-from java import JavaClass
 
 from . import craft, game, items, skills
 from .game import Game
@@ -44,7 +43,7 @@ class Agent:
         if lost:
             extra["undone"] = lost
         base = self.facts.get("base")
-        if base and math.dist(g.pos(), base) < 12 \
+        if base and g.overworld() and math.dist(g.pos(), base) < 12 \
                 and time.time() - getattr(self, "last_open_check", 0) > 30:
             # Watch the base walls: holes dug by bots let mobs in.
             self.last_open_check = time.time()
@@ -69,6 +68,7 @@ class Agent:
         body = dict(name=g.name, pos=[round(v) for v in g.pos()],
                     health=round(g.health(), 1), food=g.hunger(),
                     inventory=g.inv(), status=g.status, night=g.is_night(),
+                    dim=g.dim(),
                     danger=g.health() < 10 and bool(g.hostiles(8)),
                     task_id=getattr(self, "assigned", None),
                     animals=self.sightings(),
@@ -114,39 +114,34 @@ class Agent:
             g.close_door()
             g.open_door_if_inside()
         dead = g.health() <= 0
-        # Meteor's Auto Respawn is quicker than our ticks, so also notice a
-        # death by the player's entity id changing (respawning makes a new one).
-        # (The entity id survives a respawn; the client-side player object
-        # does not, so compare object identity.)
-        if not hasattr(self, "_identity"):
-            self._identity = JavaClass("java.lang.System").identityHashCode
-        eid = (self._identity(g.mc.player), m.world_info().dimension)
-        last = getattr(self, "entity_id", None)
-        if not isinstance(last, tuple):
-            last = eid  # first tick, or state from an older code version
-        # (A dimension change also makes a new entity; that is not a death.)
-        respawned = last[0] != eid[0] and last[1] == eid[1]
-        self.entity_id = eid
-        if (dead and not self.was_dead) or respawned:
-            pos = getattr(self, "last_alive_pos", None)
-            try:
-                if dead:
-                    raise LookupError  # still on the death screen: ours is right
-                # The server's record of where we died: our own last
-                # position was often already the bed (Meteor respawns
-                # faster than our ticks).
-                spot = g.mc.player.getLastDeathLocation()
-                if spot.isPresent():
-                    bp = spot.get().pos()
-                    pos = [bp.getX(), bp.getY(), bp.getZ()]
-            except Exception:
-                pass
+        # A death shows as a new entry in the server's record of where we
+        # last died (sent with the respawn). Meteor's Auto Respawn is quicker
+        # than our ticks, and a death in the nether respawns us in the
+        # overworld, which looks just like walking through a portal.
+        key = None
+        try:
+            spot = g.mc.player.getLastDeathLocation()
+            if spot.isPresent():
+                gp = spot.get()
+                bp = gp.pos()
+                # "ResourceKey[minecraft:dimension / minecraft:the_nether]"
+                key = (str(gp.dimension()).rsplit(":", 1)[-1].rstrip("]"),
+                       bp.getX(), bp.getY(), bp.getZ())
+        except Exception:
+            key = getattr(self, "death_key", None)
+        first = not hasattr(self, "death_key")
+        died = not first and key is not None and key != self.death_key
+        self.death_key = key
+        if died:
+            ddim, pos = key[0], list(key[1:])
             prev = getattr(self, "last_death_at", 0)
             self.last_death_at = time.time()
-            self.death = (pos, time.time())
-            in_water = pos and g.block(*pos) in ("water", "bubble_column")
-            self.report(event=f"died at {pos}" + (" in water" if in_water else ""))
-            underground = pos and pos[1] < 55
+            same = ddim == g.dim()
+            self.death = (pos, time.time()) if same and ddim == "overworld" else None
+            in_water = same and g.block(*pos) in ("water", "bubble_column")
+            where = "" if ddim == "overworld" else f" in {ddim}"
+            self.report(event=f"died at {pos}" + (" in water" if in_water else "") + where)
+            underground = pos[1] < 55
             chain = time.time() - prev < 300
             if (self.task or {}).get("skill") == "recover" or in_water or underground \
                     or chain:
@@ -221,15 +216,15 @@ class Agent:
                 if "base" in self.facts and 60 < math.dist(g.pos(), self.facts["base"]) < 2 * skills.LEASH \
                         and g.head_home(math.dist(g.pos(), self.facts["base"])):
                     raise game.TaskChanged("dusk")
-                if g.hunger() <= 6 and not g.count(items.CLASSES["food"]) \
+                if g.hunger() <= 6 and not g.count(items.CLASSES["food"]) and g.overworld() \
                         and self.task.get("skill") not in ("hunt", "fish", "harvest") \
                         and not g.is_night():
                     # Starving mid-task (a long mining trip): stop and eat
                     # first; the emergency hunt starts at the next step.
                     raise game.TaskChanged("hungry")
-                if g.is_night() and (self.task.get("surface")
-                                     or ("base" in self.facts
-                                         and not self.task.get("at_base"))):
+                if g.is_night() and g.overworld() and not self.task.get("night") \
+                        and (self.task.get("surface")
+                             or ("base" in self.facts and not self.task.get("at_base"))):
                     raise game.TaskChanged("night")
 
     # -- main loop ---------------------------------------------------------
@@ -283,7 +278,8 @@ class Agent:
             self.death = None
             task = {"id": "recover_gear", "skill": "recover",
                     "args": {"pos": death[0]}}
-        elif ((g.health() < 8 and g.hostiles(10)) or (unarmed and g.is_night())) \
+        elif ((g.health() < 8 and g.hostiles(10))
+              or (unarmed and g.is_night() and g.overworld())) \
                 and task["skill"] != "shelter":
             # Badly hurt, or empty-handed after a respawn, with mobs about:
             # run for the (sealed) base if it is close, else dig in here.
@@ -300,14 +296,16 @@ class Agent:
             # Get home before dark: out in the open at night is where most
             # deaths (and lost loot) happened.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
-        elif g.is_night() and (task.get("surface") or unarmed
-                               or ("base" in self.facts and not task.get("at_base"))):
+        elif g.is_night() and g.overworld() and not task.get("night") and (
+                task.get("surface") or unarmed
+                or ("base" in self.facts and not task.get("at_base"))):
             # With a base, the whole team goes home to sleep: mining at
             # night got bots killed, and sleeping skips the night anyway.
             # Surface work waits for daylight, and so does a bot that just
             # respawned with nothing: it would only feed the zombies.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
-        elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night():
+        elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night() \
+                and g.overworld():
             task = {"id": "emergency_food", "skill": "hunt", "args": {"count": 3, "fed": 16},
                     "surface": True}
         exit_ = self.facts.get("base_exit")
