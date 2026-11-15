@@ -391,6 +391,16 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
 def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
+    if blocks == "stone" and facts.get("mine") and facts.get("mine_lit") \
+            and g.count(lambda i: i.endswith("_pickaxe")) and g.overworld():
+        # Cobble from our own lit tunnels: Baritone went for the nearest
+        # exposed stone, often deep in a cave (a skeleton shot a bot at
+        # y=-1 while it was only after cobblestone for tools).
+        g.status = f"cutting stone in the mine {g.count(pred)}/{count}"
+        branch_mine(g, facts, blocks="iron", item=item, count=count,
+                    length=count, timeout=min(timeout, 900))
+        if g.count(pred) >= count:
+            return True
     if blocks in ("iron", "coal") and not g.count(lambda i: i == "torch") \
             and not g.count(CLASSES["coal"]):
         make_torches(g, facts, count=8)  # caves are dark: light them as we go
