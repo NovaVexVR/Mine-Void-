@@ -74,6 +74,19 @@ def avoid_danger(g, facts, radius=28):
     return True
 
 
+def explore(g, facts, seconds):
+    """Baritone's explore for a while, turning away from danger spots on
+    the way: exploring for logs walked a bot 165 blocks straight back to
+    the lake where the Drowned had just killed it."""
+    g.b("explore")
+    end = time.time() + seconds
+    while time.time() < end:
+        g.sleep(1)
+        if avoid_danger(g, facts, radius=40):
+            return
+    g.stop()
+
+
 def light_the_way(g, last):
     """Underground, drop a torch every ~10 blocks: caves full of mobs were
     killing the miners, and lit tunnels stop new spawns. Returns where the
@@ -306,9 +319,7 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
                 # Nothing of that kind known nearby: wander and retry.
                 misses += 1
                 g.status = f"exploring for {blocks}"
-                g.b("explore")
-                g.sleep(15 + 10 * min(misses, 4))
-                g.b("stop")
+                explore(g, facts, 15 + 10 * min(misses, 4))
         # Progress = more items, or really going somewhere. Jittering in
         # place (Baritone fighting a path it cannot finish) is not progress.
         have_now, here = g.count(pred), g.pos()
@@ -407,9 +418,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
                 g.status = f"heading for a {a[0]} seen at {a[1:]}"
                 g.goto_near(*a[1:], radius=6, timeout=90)
                 continue
-            g.b("explore")
-            g.sleep(30)
-            g.b("stop")
+            explore(g, facts, 30)
             continue
         target, last_goto, chase_end = prey[0], 0, time.time() + 45
         pos = target.position
@@ -560,9 +569,7 @@ def shear(g, facts, timeout=300):
             # nothing woolly in sight: head for a reported sheep
             spots = [a for a in facts.get("_animals", []) if a[0] == "sheep"]
             if not spots:
-                g.b("explore")
-                g.sleep(30)
-                g.stop()
+                explore(g, facts, 30)
                 continue
             a = min(spots, key=lambda a: math.dist(a[1:], g.pos()))
             g.goto_near(*a[1:], radius=6, timeout=90)
@@ -1835,9 +1842,7 @@ def build_farm(g, facts, plots=8):
         spots = farm_spots(g)
         if len(spots) >= 2:
             break
-        g.b("explore")
-        g.sleep(25)
-        g.stop()
+        explore(g, facts, 25)
     if len(spots) < 2 and facts.get("base_exit"):
         # No water close to home. Crops grow on dry farmland too, only
         # slower, and next to the base door the farm is easy to tend.

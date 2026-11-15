@@ -142,7 +142,16 @@ class Agent:
         ident = (self._identity(g.mc.player), g.dim())
         last = getattr(self, "player_ident", ident)
         if not first and key is not None and ident[0] != last[0] and ident[1] == last[1]:
-            died = True
+            # (The new player object can arrive before the new death
+            # record: wait a little for it, or a death got reported twice,
+            # first at the previous death's spot.)
+            self.respawn_seen = time.time()
+        seen = getattr(self, "respawn_seen", None)
+        if died:
+            self.respawn_seen = None
+        elif seen and time.time() - seen > 10:
+            self.respawn_seen = None
+            died = True  # died again on the very same block
         self.player_ident = ident
         self.death_key = key
         if died:
