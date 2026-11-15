@@ -37,6 +37,7 @@ class Coordinator:
         self.done = {}      # task id -> [bot names] (sticky/team completions)
         self.done_at = {}   # task id -> time last finished (for cooldowns)
         self.failed_at = {}  # (bot, task id) -> time it last failed
+        self.forced = {}     # bot -> one-off task from POST /force (testing)
         self.animals = {}   # (kind, x//16, z//16) -> [kind, x, y, z, seen_at]
         self.events = []    # recent log lines for the dashboard
         self.load_goal(goal_file)
@@ -356,7 +357,7 @@ class Coordinator:
             if "count_per_bot" in task:
                 task["args"] = dict(task["args"], count=task["count_per_bot"]
                                     * max(1, len(self.active())))
-            if night and task.get("surface"):
+            if night and task.get("surface") and not task.get("night"):
                 first_surface = first_surface or task
                 continue
             return task
@@ -418,7 +419,12 @@ class Coordinator:
                 # was doing, so roles are not reshuffled.
                 current = next((dict(t, phase=p["id"]) for p in self.goal["phases"]
                                 for t in p["tasks"] if t["id"] == r["task_id"]), None)
-            task = self.keep(name, current, inv, r) or \
+            f = self.forced.get(name)
+            if f and (r.get("done") == f["id"] or r.get("event") == f"{f['id']} failed"):
+                self.forced.pop(name)  # ran once: back to the plan
+                f = None
+            task = dict(f, phase="forced") if f else \
+                self.keep(name, current, inv, r) or \
                 self.pick(name, inv, r.get("night", False), r.get("pos"))
             if task["id"] != prev.get("task", {}).get("id"):
                 self.log(f"{name} -> {task['phase']}/{task['id']}")
@@ -477,6 +483,15 @@ def make_handler(co):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             if self.path == "/report":
                 return self.send(co.report(body))
+            if self.path == "/force":
+                # {"name": "Void2", "task": {"id": .., "skill": .., "args": {}}}
+                # runs that task once on that bot; {"name": .., "task": null} cancels
+                with co.lock:
+                    if body.get("task"):
+                        co.forced[body["name"]] = body["task"]
+                    else:
+                        co.forced.pop(body["name"], None)
+                return self.send({"ok": True})
             if self.path == "/goal":
                 with co.lock:
                     co.load_goal(body["file"])

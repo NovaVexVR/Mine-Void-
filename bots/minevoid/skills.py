@@ -437,7 +437,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
 
 VALUABLES = ("raw_iron", "iron_ingot", "raw_gold", "gold_ingot", "diamond",
              "redstone", "lapis_lazuli", "emerald", "string", "leather",
-             "ender_pearl", "blaze_rod", "obsidian", "book", "feather")
+             "ender_pearl", "blaze_rod", "obsidian", "book", "feather", "ender_eye")
 
 
 def open_chest(g, facts):
@@ -508,13 +508,13 @@ def craft_from_storage(g, facts, item, material, cost):
     return stored if ok else False
 
 
-def smelt_storage(g, facts):
-    """Smelt the raw iron waiting in the chest and store the ingots."""
-    contents = withdraw(g, facts, "raw_iron", 64)
+def smelt_storage(g, facts, raw="raw_iron", out="iron_ingot"):
+    """Smelt the raw ore waiting in the chest and store the ingots."""
+    contents = withdraw(g, facts, raw, 64)
     if contents is None:
         return False
-    if g.count(lambda j: j == "raw_iron"):
-        smelt(g, facts, "raw_iron", "iron_ingot", 64)
+    if g.count(lambda j: j == raw):
+        smelt(g, facts, raw, out, 64)
     return store(g, facts)
 
 
@@ -2209,3 +2209,5 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}
+
+from . import endgame  # noqa: E402,F401  (registers its skills in SKILLS)

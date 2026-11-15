@@ -44,7 +44,7 @@
    {"id": "bow", "scope": "each", "skill": "make_bow", "needs_fact": "base", "storage_has": {"string": 3}, "have": {"bow": 1}, "args": {}, "note": "skeletons and pillagers out-range a sword"},
    {"id": "arrows", "scope": "each", "skill": "make_bow", "requires": {"bow": 1}, "have": {"arrow": 8}, "args": {}},
    {"id": "smelt_trip", "at_base": true, "scope": "each", "skill": "smelt", "preempt": true, "requires": {"raw_iron": 3}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
-   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}, {"book": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
+   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}, {"book": 1}, {"ender_pearl": 1}, {"blaze_rod": 1}, {"obsidian": 1}, {"ender_eye": 1}, {"gold_ingot": 1}, {"lapis_lazuli": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},
    {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
@@ -57,11 +57,35 @@
    {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"},
    {"id": "diamond_pickaxe", "at_base": true, "scope": "team", "slots": 1, "skill": "craft_from_storage", "storage_has": {"diamond": 3}, "args": {"item": "diamond_pickaxe", "material": "diamond", "cost": 3}, "note": "the only pickaxe that mines obsidian (portal, enchanting table)"}
   ]},
-  {"id": "enchanting", "title": "Enchanting", "tasks": [
-   {"id": "books", "scope": "team", "slots": 1, "skill": "make_books", "surface": true, "needs_fact": "base", "storage_has": {"leather": 1}, "team_have": {"book": 1}, "args": {"books": 3}, "note": "paper from sugar cane by the water + leather from the chest; one book for the table, the rest towards bookshelves"}
+  {"id": "portal", "title": "Obsidian and the nether portal", "tasks": [
+   {"id": "obsidian", "scope": "team", "slots": 1, "skill": "obsidian", "requires": {"diamond_pickaxe": 1}, "until_fact": "portal", "team_have": {"obsidian": 4}, "args": {"count": 12}, "note": "water poured on the lava the deep mine ran into, mined with the diamond pickaxe"},
+   {"id": "build_portal", "scope": "team", "slots": 1, "skill": "build_portal", "surface": true, "needs_fact": "base_exit", "storage_has": {"obsidian": 10}, "args": {}, "fact": "portal", "note": "obsidian frame by the stairs, lit with flint and steel"}
   ]},
-  {"id": "todo", "title": "Not implemented yet", "tasks": [
-   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "enchanting table (obsidian), bookshelves, lapis, xp -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
+  {"id": "enchanting", "title": "Enchanting", "tasks": [
+   {"id": "books", "scope": "team", "slots": 1, "skill": "make_books", "surface": true, "needs_fact": "base", "storage_has": {"leather": 1}, "team_have": {"book": 1}, "args": {"books": 3}, "note": "paper from sugar cane by the water + leather from the chest; one book for the table, the rest towards bookshelves"},
+   {"id": "obsidian_table", "scope": "team", "slots": 1, "skill": "obsidian", "needs_fact": "portal", "requires": {"diamond_pickaxe": 1}, "until_fact": "enchanting_table", "team_have": {"obsidian": 2}, "args": {"count": 4}},
+   {"id": "enchanting_table", "at_base": true, "scope": "team", "slots": 1, "skill": "enchanting_table", "needs_fact": "base", "storage_has": {"diamond": 2, "book": 1}, "args": {}, "fact": "enchanting_table", "note": "a book, two diamonds and four obsidian; in the base room's corner"},
+   {"id": "enchant", "at_base": true, "scope": "each", "skill": "enchant", "needs_fact": "enchanting_table", "storage_has": {"lapis_lazuli": 1}, "cooldown": 1800, "args": {}, "note": "sword, pickaxe, chestplate, bow - whatever the levels and lapis allow"}
+  ]},
+  {"id": "nether", "title": "The nether: blaze rods", "tasks": [
+   {"id": "smelt_gold_chest", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "storage_has": {"raw_gold": 3}, "repeat": true, "args": {"raw": "raw_gold", "out": "gold_ingot"}},
+   {"id": "smelt_gold", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_gold": 1}, "args": {"input": "raw_gold", "output": "gold_ingot", "count": 64}, "repeat": true},
+   {"id": "gold_helmet", "scope": "each", "skill": "craft", "needs_fact": "portal", "requires": {"gold_ingot": 5}, "have": {"golden_helmet": 1}, "args": {"item": "golden_helmet"}, "note": "piglins leave players in gold alone"},
+   {"id": "gold_helmet_chest", "at_base": true, "scope": "each", "skill": "craft_from_storage", "needs_fact": "portal", "storage_has": {"gold_ingot": 5}, "have": {"golden_helmet": 1}, "args": {"item": "golden_helmet", "material": "gold_ingot", "cost": 5}},
+   {"id": "blaze_rods", "scope": "team", "slots": 2, "skill": "blaze_rods", "needs_fact": "portal", "requires": {"iron_sword": 1}, "team_have": {"blaze_rod|ender_eye": 3}, "args": {"count": 6}, "note": "Baritone's cache finds a fortress's blaze spawner; two bots fight there together"}
+  ]},
+  {"id": "pearls", "title": "Ender pearls and eyes of ender", "tasks": [
+   {"id": "pearls", "scope": "team", "slots": 2, "skill": "hunt", "surface": true, "night": true, "needs_fact": "portal", "requires": {"iron_sword": 1}, "team_have": {"ender_pearl|ender_eye": 6}, "args": {"animals": "enderman", "item": "ender_pearl", "count": 16, "timeout": 1200}, "note": "endermen at night: the one job allowed out after dark"},
+   {"id": "eyes", "at_base": true, "scope": "team", "slots": 1, "skill": "make_eyes", "storage_has": {"ender_pearl": 1, "blaze_rod": 1}, "cooldown": 300, "args": {"count": 18}}
+  ]},
+  {"id": "stronghold", "title": "Stronghold and the end portal", "tasks": [
+   {"id": "find_stronghold", "scope": "team", "slots": 1, "skill": "find_stronghold", "surface": true, "needs_fact": "base_exit", "storage_has": {"ender_eye": 2}, "args": {}, "fact": "stronghold", "note": "two eye throws 200 blocks apart; the lines cross over the stronghold"},
+   {"id": "open_end_portal", "scope": "team", "slots": 1, "skill": "open_end_portal", "needs_fact": "stronghold", "storage_has": {"ender_eye": 10}, "args": {}, "fact": "end_portal", "note": "walk there, dig down, find the portal room (Baritone caches portal frames), fill the frame"}
+  ]},
+  {"id": "dragon", "title": "The dragon", "tasks": [
+   {"id": "end_arrows", "scope": "each", "skill": "make_bow", "needs_fact": "end_portal", "have": {"arrow": 48}, "args": {"arrows": 64}},
+   {"id": "end_blocks", "scope": "each", "skill": "gather", "needs_fact": "end_portal", "args": {"blocks": "stone", "item": "cobblestone", "count": 48}, "note": "for bridging to the island and towering"},
+   {"id": "dragon", "scope": "each", "skill": "end_fight", "needs_fact": "end_portal", "requires": {"bow": 1, "arrow": 16}, "until_fact": "dragon_dead", "args": {}, "note": "crystals first with arrows, then the dragon: arrows in flight, the sword when it perches"}
   ]}
  ],
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shears", 2], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},

@@ -27,7 +27,7 @@ BLOCK_GROUPS = {
     "gravel": "gravel",
     "sugar_cane": "sugar_cane",
 }
-RANGED = ("skeleton", "stray", "bogged", "pillager", "witch", "creeper")
+RANGED = ("skeleton", "stray", "bogged", "pillager", "witch", "creeper", "blaze", "ghast")
 BARITONE_SETTINGS = {
     # Play like a legit player: the server runs GrimAC and anti-xray, so do
     # not trust ore positions in chunk data and avoid twitchy movement.

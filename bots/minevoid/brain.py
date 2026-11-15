@@ -16,7 +16,7 @@ import urllib.request
 
 import minescript as m
 
-from . import craft, game, items, skills
+from . import craft, endgame, game, items, skills
 from .game import Game
 
 COORD = os.environ.get("MINEVOID_COORD", "http://127.0.0.1:8765")
@@ -96,7 +96,7 @@ class Agent:
             return []
         self.last_sighting = now
         try:
-            seen = m.entities(type=".*\\.(cow|pig|sheep|chicken|rabbit|mooshroom)$",
+            seen = m.entities(type=".*\\.(cow|pig|sheep|chicken|rabbit|mooshroom|enderman)$",
                               max_distance=128, limit=12)
         except Exception:
             return []
@@ -247,7 +247,7 @@ class Agent:
 
     def reload_code(self):
         """Pick up edited skill code without restarting the client."""
-        mods = (items, game, craft, skills, sys.modules[__name__])
+        mods = (items, game, craft, skills, endgame, sys.modules[__name__])
         stamp = max(os.path.getmtime(mod.__file__) for mod in mods)
         if stamp > getattr(self, "code_stamp", stamp):
             for mod in mods:
