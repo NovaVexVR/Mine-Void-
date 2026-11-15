@@ -59,6 +59,8 @@ Switch goal while everything is running:
 
 ```bash
 curl -X POST localhost:8765/goal -d '{"file": "goals/my_goal.json"}'
+# run one task on one bot (testing); "task": null cancels
+curl -X POST localhost:8765/force -d '{"name": "Void2", "task": {"id": "t", "skill": "dev", "args": {"code": "g.log(g.pos())"}}}'
 ```
 
 * `team_have` – done once the whole team holds that much **per bot**.
@@ -148,20 +150,34 @@ live runs; see Status for details.
 **Stage 2 – mid game**
 9. Diamonds: a second branch mine at y=-58 under the iron one (anti-xray
    hides ore until a tunnel exposes it), lapis on the way – in testing
-10. Enchanting: books (sugar cane paper + chest leather – in testing),
-   enchanting table (obsidian, diamonds, a book), bookshelves
-   (books from sugar cane paper + leather), lapis, and XP from mining,
-   smelting and mob kills; enchant the kit (Protection, Sharpness,
-   Efficiency, Unbreaking, Power on a bow). Later an anvil to combine books
-   and repair gear
-11. Nether portal (obsidian via bucket + lava, or mined with diamond pick)
-12. Nether: gold armour for piglins, fortress, ~6 blaze rods
-13. ~12 ender pearls (endermen, or bartering gold with piglins)
+10. Enchanting: books (sugar cane paper + chest leather), the enchanting
+   table in the base corner (a book, two diamonds, four obsidian), the kit
+   enchanted with the levels and lapis at hand (`enchant`). Later:
+   bookshelves for level-30 offers, an anvil
+11. Obsidian and the nether portal: water poured on the lava the deep mine
+   ran into, mined with a diamond pickaxe (`obsidian`); the frame built by
+   the stairs with Baritone's builder and lit with flint and steel
+   (`build_portal`)
+12. Nether: a golden helmet against piglins, the fortress's blaze spawner
+   found from Baritone's block cache, blazes fought there by two bots
+   (`blaze_rods`)
+13. Ender pearls: endermen hunted at night, the one job allowed out after
+   dark; eyes of ender crafted from the chest's pearls and rods
+   (`make_eyes`)
 
 **Stage 3 – the dragon**
-14. Eyes of ender, triangulate the stronghold from two throw points
-15. Activate the portal, bring blocks, bows, beds and food
-16. Destroy the end crystals, kill the dragon
+14. Stronghold: two eye throws 300 blocks apart, refined by closer throws
+   on the way (`find_stronghold`); eye throwing tested live
+15. Portal room found from Baritone's cached end portal frames after
+   digging down, the frame filled (`open_end_portal`); arrows and bridging
+   blocks for everyone
+16. The End: crystals shot off the pillars, the dragon shot in flight and
+   hit when it perches; the dragon egg marks the win (`end_fight`)
+
+Items 10-16 are written (`bots/minevoid/endgame.py`) and wired into the
+plan; they run as the team gets there. Pieces are checked in short live
+tests on one bot (`POST /force` with the `dev` skill; any test items are
+given by console and removed afterwards).
 
 **Infrastructure** (alongside)
 * A small Fabric mod for instant inventory work (crafting via Minescript

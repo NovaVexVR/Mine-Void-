@@ -213,6 +213,8 @@ class Agent:
             if self.interruptible and task and self.task and not special:
                 if task["id"] != self.assigned:
                     raise game.TaskChanged(task["id"])
+                if self.task.get("phase") == "forced":
+                    return  # (a test task: no dusk/hunger/night breaks)
                 if "base" in self.facts and 60 < math.dist(g.pos(), self.facts["base"]) < 2 * skills.LEASH \
                         and g.head_home(math.dist(g.pos(), self.facts["base"])):
                     raise game.TaskChanged("dusk")
@@ -271,7 +273,10 @@ class Agent:
         self.assigned = task["id"]  # what the coordinator thinks we do
         death = getattr(self, "death", None)
         unarmed = g.count(items.CLASSES["sword"]) == 0
-        if death and death[0] and time.time() - death[1] < 240 \
+        forced = task.get("phase") == "forced"  # a test task: run it as is
+        if forced:
+            pass
+        elif death and death[0] and time.time() - death[1] < 240 \
                 and not g.is_night():
             # Dropped items last five minutes: go and pick our gear back up,
             # once. (A death while doing this cancels it; see tick.)
@@ -289,7 +294,7 @@ class Agent:
             else:
                 task = {"id": "dig_in", "skill": "dig_in", "args": {}}
 
-        if task["skill"] in ("recover", "dig_in"):
+        if task["skill"] in ("recover", "dig_in") or forced:
             pass
         elif "base" in self.facts and 60 < math.dist(g.pos(), self.facts["base"]) < 2 * skills.LEASH \
                 and g.head_home(math.dist(g.pos(), self.facts["base"])):
