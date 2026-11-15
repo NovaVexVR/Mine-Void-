@@ -54,6 +54,8 @@ A plan is a list of phases, each a list of tasks:
   to the earlier phases.
 * `fact` – done once a bot publishes that fact (e.g. `base`).
 * `surface: true` – bots shelter at night instead of doing it.
+* `night: true` – may run after dark anyway (enderman hunting).
+* `storage_has` – only while the base chest holds that much.
 
 Switch goal while everything is running:
 
