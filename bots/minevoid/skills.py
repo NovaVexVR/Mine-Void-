@@ -66,13 +66,17 @@ def avoid_danger(g, facts, radius=28):
     # visible ore in loaded chunks, and from 60 blocks away that was still
     # the deadly cave. Head away from it, or home if that leaves the leash.
     home = facts.get("base") or here
-    dx, dz = here[0] - d[0], here[2] - d[2]
-    n = math.hypot(dx, dz) or 1.0
-    tx, tz = d[0] + dx / n * 130, d[2] + dz / n * 130
-    if math.dist((tx, tz), (home[0], home[2])) > LEASH:
-        hx, hz = home[0] - d[0], home[2] - d[2]
-        hn = math.hypot(hx, hz) or 1.0
-        tx, tz = d[0] + hx / hn * 130, d[2] + hz / hn * 130
+    # Of eight points 130 blocks from the spot (within the leash), the one
+    # farthest from every known danger spot: straight away from one spot
+    # led a bot to the Drowned's river by another.
+    now = time.time()
+    live = [s[:3] for s in facts.get("danger", [])
+            if now - s[3] < (s[4] if len(s) > 4 else 43200)] or [d]
+    cands = [(d[0] + math.cos(a) * 130, d[2] + math.sin(a) * 130)
+             for a in (i * math.pi / 4 for i in range(8))]
+    cands = [c for c in cands if math.dist(c, (home[0], home[2])) <= LEASH] or \
+        [(home[0], home[2])]
+    tx, tz = max(cands, key=lambda c: min(math.dist(c, (q[0], q[2])) for q in live))
     g.stop()
     g.status = f"keeping away from where a teammate died at {[round(v) for v in d]}"
     g.b(f"goto {int(tx)} {int(tz)}")
