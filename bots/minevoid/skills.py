@@ -2227,6 +2227,47 @@ def light_farm(g, facts):
     g.log(f"farm lit: {sum(g.block(*c) in ('torch', 'wall_torch') for c in corners)}/4 corners")
 
 
+def plant_trees(g, facts, max_trees=12):
+    """Saplings in a grid on open grass near the top of the stairs: the
+    trees around the base were all cut down, and wood runs went further
+    and further out (one bot spent its whole morning looking for logs)."""
+    saplings = [i for i in g.inv() if i.endswith("_sapling")]
+    if not saplings or not facts.get("base_exit"):
+        return False
+    ex, ey, ez = facts["base_exit"]
+    if not g.goto(ex, ey, ez, timeout=300, near=2):
+        return False
+    hm = height_map(g, ex, ez, ey, 16)
+    pen = facts.get("pen") or {}
+    px, pz = pen.get("corner") or (10 ** 6, 10 ** 6)
+    bx = facts["base"][0]
+    spots = []
+    for x in range(ex - 15, ex + 16, 3):
+        for z in range(ez - 15, ez + 16, 3):
+            h = hm.get((x, z))
+            if not h or h[1] not in ("grass_block", "dirt", "podzol") or h[2] not in AIR:
+                continue
+            if math.dist((x, z), (ex, ez)) < 5 or (abs(z - ez) <= 2 and bx <= x <= ex + 2):
+                continue  # not on the stairs or the doorstep
+            if px - 2 <= x <= px + 7 and pz - 2 <= z <= pz + 7:
+                continue  # not in the pen
+            if any(k not in AIR for k in (short(b) for b in m.getblocklist(
+                    [[x, h[0] + d, z] for d in range(1, 6)]))):
+                continue  # room to grow
+            spots.append((x, h[0] + 1, z))
+    spots.sort(key=lambda c: math.dist(c, (ex, ey, ez)))
+    planted = 0
+    for c in spots[:max_trees]:
+        sap = next((i for i in g.inv() if i.endswith("_sapling")), None)
+        if sap is None:
+            break
+        g.status = f"planting trees ({planted})"
+        if g.place_at(sap, *c):
+            planted += 1
+    g.log(f"trees: planted {planted} saplings near the base")
+    return planted > 0
+
+
 def wait_for_food(g, facts, timeout=180):
     """Starving and nearly dead: stay in the base room until a teammate
     brings bread or the farm has ripe wheat, then eat."""
@@ -2565,6 +2606,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "light_shaft": light_shaft,
     "wait_for_food": wait_for_food,
     "make_torches": make_torches,
+    "plant_trees": plant_trees,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}
