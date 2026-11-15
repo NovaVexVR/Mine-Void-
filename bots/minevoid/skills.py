@@ -86,6 +86,88 @@ def light_the_way(g, last):
     return pos or here
 
 
+MINE_DIRS = {"E": (1, 0), "W": (-1, 0), "S": (0, 1), "N": (0, -1)}
+ORES = {"iron": ("iron_ore", "deepslate_iron_ore", "coal_ore", "deepslate_coal_ore"),
+        "coal": ("coal_ore", "deepslate_coal_ore", "iron_ore", "deepslate_iron_ore")}
+HAZARDS = ("lava", "water", "bubble_column")
+
+
+def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
+                length=24, timeout=900):
+    """Mine ore from the team's own branch mine instead of wandering into
+    caves (where most miners died): a fixed spot at y=16 near the base,
+    with straight 1x2 tunnels dug by hand in four directions. Every step
+    the freshly exposed walls are checked for ore, which is real once
+    exposed (anti-xray only fakes hidden blocks). A torch every ~10 blocks;
+    lava or water ahead ends the branch."""
+    pred = matcher(item)
+    if not g.count(lambda i: i.endswith("_pickaxe")):
+        return False
+    base = facts["base"]
+    mine = facts.get("mine") or [base[0] + 6, 16, base[2] + 24]
+    g.status = "going down to the mine"
+    if not g.goto(*mine, timeout=400, near=1):
+        g.log(f"mine: could not get down to {mine}")
+        return False
+    if not facts.get("mine"):
+        g.pending_facts["mine"] = mine
+    branches = dict(facts.get("mine_branches") or {})
+    if branches.get("blocked"):
+        branches.pop("blocked")
+    d = min((k for k in MINE_DIRS if branches.get(k, 0) >= 0),
+            key=lambda k: branches.get(k, 0), default=None)
+    if d is None:
+        g.log("mine: every branch is blocked")
+        return False
+    dx, dz = MINE_DIRS[d]
+    n = branches.get(d, 0)
+    x, y, z = mine
+    ex, ez = x + dx * n, z + dz * n
+    if n and not g.goto(ex, y, ez, timeout=180, near=0):
+        g.log(f"mine: could not get to the end of branch {d}")
+        return False
+    ores = ORES.get(blocks, ORES["iron"])
+    side = [(dz, dx), (-dz, -dx)]  # perpendicular offsets (x, z)
+    last_torch, end, steps = None, time.time() + timeout, 0
+    while g.count(pred) < count and steps < length and time.time() < end:
+        g.status = f"branch mining {d} ({n} blocks, {g.count(pred)}/{count})"
+        cx, cz = ex + dx, ez + dz
+        look = [(cx, y, cz), (cx, y + 1, cz), (cx + dx, y, cz + dz),
+                (cx + dx, y + 1, cz + dz), (cx, y + 2, cz), (cx, y - 1, cz)]
+        look += [(cx + a, yy, cz + b) for a, b in side for yy in (y, y + 1)]
+        kinds = [short(k) for k in m.getblocklist([list(c) for c in look])]
+        if any(k in HAZARDS for k in kinds):
+            g.log(f"mine: {d} branch hit liquid at {[cx, y, cz]}; stopping it")
+            branches[d] = -1  # never extend it again
+            break
+        for c in look[:2]:
+            for _ in range(4):  # gravel/sand can keep falling in
+                if g.block(*c) in AIR:
+                    break
+                g.select(lambda i: i.endswith("_pickaxe"))
+                if not g.break_block(*c, timeout=8):
+                    break
+        if any(g.block(*c) not in AIR for c in look[:2]):
+            g.log(f"mine: could not dig through at {[cx, y, cz]}")
+            break
+        if not g.goto(cx, y, cz, timeout=15):
+            break
+        ex, ez, n, steps = cx, cz, n + 1, steps + 1
+        # ore showing in the walls, floor or ceiling of the new cell
+        walls = [(ex + a, yy, ez + b) for a, b in side for yy in (y, y + 1)]
+        walls += [(ex, y - 1, ez), (ex, y + 2, ez)]
+        for c, k in zip(walls, m.getblocklist([list(c) for c in walls])):
+            if short(k) in ores:
+                g.select(lambda i: i.endswith("_pickaxe"))
+                g.break_block(*c, timeout=8)
+        last_torch = light_the_way(g, last_torch)
+    pick_up_drops(g, g.pos(), 4)
+    branches[d] = n if branches.get(d, 0) >= 0 else -1
+    g.pending_facts["mine_branches"] = branches
+    g.log(f"mine: branch {d} now {n} long, holding {g.count(pred)} {item}")
+    return steps > 0 or g.count(pred) >= count
+
+
 def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
@@ -1737,5 +1819,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
           "store": store, "craft_from_storage": craft_from_storage,
           "smelt_storage": smelt_storage, "fetch_water": fetch_water,
           "build_farm_room": build_farm_room,
+    "branch_mine": branch_mine,
     "water_farm": water_farm,
           "harvest": harvest}
