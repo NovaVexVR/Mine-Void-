@@ -2374,6 +2374,9 @@ def build_pen(g, facts):
         g.log("pen: could not craft the walls")
         return False
     gate = next((i for i in g.inv() if i.endswith("_fence_gate")), None)
+    if gate is None and g.count(lambda i: i == "stick") < 4:
+        # sticks first: made afterwards they ate the gate's planks
+        crafting.ensure(g, "stick", 4)
     if gate is None:
         planks = max((i for i, n in g.inv().items() if i.endswith("_planks") and n >= 2),
                      key=lambda i: g.inv()[i], default=None)
