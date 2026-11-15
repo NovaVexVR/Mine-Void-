@@ -179,7 +179,12 @@ live runs; see Status for details.
 Items 10-16 are written (`bots/minevoid/endgame.py`) and wired into the
 plan; they run as the team gets there. Pieces are checked in short live
 tests on one bot (`POST /force` with the `dev` skill; any test items are
-given by console and removed afterwards).
+given by console and removed afterwards). Passed so far: throwing an eye of
+ender and reading its direction, the portal site finder and Baritone's
+builder towering up to a portal's top row, walking into the nether through
+a portal and back out, casting and mining obsidian at a tunnel's lava end
+(slow: ~5 min a block), and enchanting a sword at a table. Not yet tested:
+the blaze fight, enderman hunting, finding the portal room, the End.
 
 **Infrastructure** (alongside)
 * A small Fabric mod for instant inventory work (crafting via Minescript

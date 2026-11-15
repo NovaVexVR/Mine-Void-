@@ -117,15 +117,21 @@ def enchant(g, facts):
         g.click(g.menu_slot(slot, 2), 0, "QUICK_MOVE")
         g.click(g.menu_slot(lapis, 2), 0, "QUICK_MOVE")
         g.sleep(1)
-        costs = list(menu.costs)
-        best = max((i for i in range(3)
-                    if 0 < costs[i] <= level and i + 1 <= has_lapis_in_menu(menu)),
-                   default=None)
+        # Best offer first; the server refuses what our levels or lapis
+        # cannot pay for. (Minescript cannot read the menu's int[] costs.)
+        best = None
+        for i in (2, 1, 0):
+            if i + 1 > has_lapis_in_menu(menu):
+                continue
+            g.mc.gameMode.handleInventoryButtonClick(menu.containerId, i)
+            g.sleep(0.8)
+            if menu.getSlot(0).getItem().isEnchanted():
+                best = i
+                break
         if best is not None:
-            g.mc.gameMode.handleInventoryButtonClick(menu.containerId, best)
-            g.sleep(1)
             done += 1
-            g.log(f"enchanting: {short(stack.item)} for {costs[best]} levels")
+            g.log(f"enchanting: {short(stack.item)} with offer {best + 1} "
+                  f"({level} -> {g.mc.player.experienceLevel} levels)")
         g.click(0, 0, "QUICK_MOVE")
         g.click(1, 0, "QUICK_MOVE")
         g.close_screen()
