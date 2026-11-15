@@ -9,6 +9,7 @@ import concurrent.futures as cf
 import hashlib
 import json
 import os
+import platform
 import sys
 import urllib.parse
 import urllib.request
@@ -62,17 +63,36 @@ def fetch(url, dest, sha1=None):
     return dest
 
 
+# This machine, in the names Mojang's library rules use.
+OS_NAME = {"Windows": "windows", "Darwin": "osx"}.get(platform.system(), "linux")
+ARM = platform.machine().lower() in ("arm64", "aarch64")
+
+
 def rules_allow(rules):
     if not rules:
         return True
     allowed = False
     for r in rules:
         os_ = r.get("os", {})
-        match = os_.get("name", "linux") == "linux" and \
-            os_.get("arch", "x86_64") != "x86"
+        arch = os_.get("arch")
+        match = os_.get("name", OS_NAME) == OS_NAME and \
+            (arch is None or (arch == "arm64") == ARM and arch != "x86")
         if match:
             allowed = r["action"] == "allow"
     return allowed
+
+
+def native_ok(name):
+    """LWJGL natives come as separate libraries per platform
+    ("...:natives-linux", "...:natives-macos-arm64"): keep ours only."""
+    parts = name.split(":")
+    if len(parts) < 4 or not parts[3].startswith("natives-"):
+        return True
+    cls = parts[3][len("natives-"):]
+    want = {"linux": "linux", "windows": "windows", "osx": "macos"}[OS_NAME]
+    if not cls.startswith(want) or cls.endswith("-x86"):
+        return False
+    return cls.endswith("arm64") == ARM
 
 
 def maven_path(name):
@@ -102,7 +122,7 @@ def main():
     jobs.append((client["url"], client_jar, client["sha1"]))
 
     for lib in vjson["libraries"]:
-        if not rules_allow(lib.get("rules")):
+        if not rules_allow(lib.get("rules")) or not native_ok(lib["name"]):
             continue
         art = lib["downloads"]["artifact"]
         dest = os.path.join(CACHE, "libraries", art["path"])

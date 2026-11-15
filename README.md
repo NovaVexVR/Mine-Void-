@@ -112,6 +112,17 @@ after dying.
 the CPU, so budget roughly **one core and 1.5 GB RAM per bot** plus the
 server. Bots only need to reach the coordinator URL (`MINEVOID_COORD`) and
 the server (`MC_SERVER`), so they can be spread over several machines.
+To add bots from your own computer (Linux, Windows or macOS; Java 21 and
+Python 3.10+), whitelist their names on the server and run:
+
+```bash
+python client/run_bots.py --server HOST:25565 --coord http://HOST:8765 \
+    --token SECRET Void4 Void5
+```
+
+The first run downloads the game, Fabric and the mods for that platform;
+each bot opens a small window (or `--headless` on a Linux server).
+
 Before opening the coordinator to the network (`COORD_HOST=0.0.0.0`), set a
 shared secret: `COORD_TOKEN=...` for the coordinator and the same value as
 `MINEVOID_TOKEN` for every bot; requests without it get a 403.
@@ -193,7 +204,8 @@ the blaze fight, enderman hunting, finding the portal room, the End.
 * A small Fabric mod for instant inventory work (crafting via Minescript
   reflection takes 5-20 s)
 * Bots on your own machines: coordinator reachable over the network with a
-  token (done), launcher for your OS
+  token, `client/run_bots.py` launcher for Linux/Windows/macOS (done;
+  tested headless on Linux)
 * More than three bots; dashboard with death and anti-cheat stats
 
 ## Status

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Launch one headless bot client: client/launch.py <BotName> [--fg]
+"""Launch one bot client: client/launch.py <BotName> [--fg] [--window|--headless]
 
-Each bot gets its own game dir (client/instances/<name>) and its own Xvfb
-display, shares the downloaded jars/assets, and auto-joins the server. The
+Each bot gets its own game dir (client/instances/<name>), on a Linux server
+its own Xvfb display (on a desktop a small window), shares the downloaded jars/assets, and auto-joins the server. The
 Minescript autorun hook starts bots/agent.py once the bot is in the world.
 """
 import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -72,7 +73,10 @@ def prepare(name):
     for jar in os.listdir(launch["mods_dir"]):
         link = os.path.join(inst, "mods", jar)
         if not os.path.lexists(link):
-            os.symlink(os.path.join(launch["mods_dir"], jar), link)
+            try:
+                os.symlink(os.path.join(launch["mods_dir"], jar), link)
+            except OSError:  # (Windows without developer mode)
+                shutil.copy(os.path.join(launch["mods_dir"], jar), link)
     mdst = os.path.join(inst, "minescript", "system", "mappings",
                         launch["mc_version"])
     os.makedirs(mdst, exist_ok=True)
@@ -87,8 +91,9 @@ def prepare(name):
     ms = os.path.join(inst, "minescript")
     os.makedirs(ms, exist_ok=True)
     with open(os.path.join(ms, "config.txt"), "w") as f:
-        f.write(f'python="{shutil.which("python3")}"\n')
-        f.write(f'command_path="{os.path.join(ROOT, "bots")}"\n')
+        # (forward slashes: the config file treats backslashes as escapes)
+        f.write(f'python="{sys.executable.replace(os.sep, "/")}"\n')
+        f.write(f'command_path="{os.path.join(ROOT, "bots").replace(os.sep, "/")}"\n')
         f.write("autorun[*]=agent\n")
     return inst, launch
 
@@ -99,28 +104,32 @@ def main():
         sys.exit(__doc__)
     name = args[0]
     inst, launch = prepare(name)
-    disp = display_for(name)
-
-    # A lock left by a previous container/session would stop Xvfb starting.
-    lock, sock = f"/tmp/.X{disp}-lock", f"/tmp/.X11-unix/X{disp}"
-    for stale in (lock, sock):
-        if os.path.exists(stale):
-            os.remove(stale)
-    xvfb = subprocess.Popen(
-        ["Xvfb", f":{disp}", "-screen", "0", "640x480x24", "-nolisten", "tcp"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # The game crashes ("GLFW: failed to detect any supported platform") if
-    # it starts before the display accepts connections.
-    for _ in range(100):
-        if os.path.exists(sock) or xvfb.poll() is not None:
-            break
-        time.sleep(0.2)
-    if xvfb.poll() is not None or not os.path.exists(sock):
-        sys.exit(f"{name}: Xvfb :{disp} did not start")
-
-    env = dict(os.environ, DISPLAY=f":{disp}", LIBGL_ALWAYS_SOFTWARE="1",
-               GALLIUM_DRIVER="llvmpipe", LP_NUM_THREADS="1",
-               MINEVOID_BOT=name)
+    env = dict(os.environ, MINEVOID_BOT=name)
+    # Headless (a virtual X display, software rendering) on a Linux server;
+    # a normal small window on a desktop (Windows, macOS, or --window).
+    headless = sys.platform.startswith("linux") and "--window" not in sys.argv \
+        and (not os.environ.get("DISPLAY") or "--headless" in sys.argv)
+    xvfb = None
+    if headless:
+        disp = display_for(name)
+        # A lock left by a previous container/session would stop Xvfb starting.
+        lock, sock = f"/tmp/.X{disp}-lock", f"/tmp/.X11-unix/X{disp}"
+        for stale in (lock, sock):
+            if os.path.exists(stale):
+                os.remove(stale)
+        xvfb = subprocess.Popen(
+            ["Xvfb", f":{disp}", "-screen", "0", "640x480x24", "-nolisten", "tcp"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # The game crashes ("GLFW: failed to detect any supported platform")
+        # if it starts before the display accepts connections.
+        for _ in range(100):
+            if os.path.exists(sock) or xvfb.poll() is not None:
+                break
+            time.sleep(0.2)
+        if xvfb.poll() is not None or not os.path.exists(sock):
+            sys.exit(f"{name}: Xvfb :{disp} did not start")
+        env.update(DISPLAY=f":{disp}", LIBGL_ALWAYS_SOFTWARE="1",
+                   GALLIUM_DRIVER="llvmpipe", LP_NUM_THREADS="1")
     cmd = [
         "java", f"-Xmx{HEAP}", "-Xms256M", "-XX:+UseSerialGC",
         "-XX:TieredStopAtLevel=4", "-Dfabric.log.disableAnsi=true",
@@ -137,13 +146,19 @@ def main():
     game = subprocess.Popen(cmd, cwd=inst, env=env, stdout=log,
                             stderr=subprocess.STDOUT)
     with open(os.path.join(inst, "pids"), "w") as f:
-        f.write(f"{game.pid} {xvfb.pid}\n")
-    print(f"{name}: game pid {game.pid}, display :{disp}, log {inst}/client.out")
+        f.write(f"{game.pid}" + (f" {xvfb.pid}" if xvfb else "") + "\n")
+    where = f"display :{disp}" if xvfb else "windowed"
+    print(f"{name}: game pid {game.pid}, {where}, log {inst}/client.out")
     if "--fg" in sys.argv:
+        # (run_bots.py stops us with SIGTERM: take the game down with us)
+        signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
         try:
             game.wait()
         finally:
-            xvfb.terminate()
+            if game.poll() is None:
+                game.terminate()
+            if xvfb:
+                xvfb.terminate()
 
 
 if __name__ == "__main__":
