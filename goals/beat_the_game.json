@@ -52,8 +52,11 @@
    {"id": "build_pen", "scope": "team", "slots": 1, "skill": "build_pen", "surface": true, "needs_fact": "base_exit", "requires": {"cobblestone": 24}, "args": {}, "fact": "pen", "note": "a 4x4 cobblestone-wall pen with a fence gate next to the top of the stairs"},
    {"id": "ranch", "scope": "team", "slots": 1, "skill": "ranch", "surface": true, "needs_fact": "pen", "requires": {"wheat": 2}, "cooldown": 900, "args": {}, "note": "lure cows and sheep in with wheat and breed them; hunters only take the surplus"}
   ]},
+  {"id": "diamonds", "title": "Diamonds", "tasks": [
+   {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"}
+  ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
-   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "diamonds -> enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
+   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
   ]}
  ],
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shears", 2], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},

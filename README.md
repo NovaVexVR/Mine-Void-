@@ -146,7 +146,8 @@ live runs; see Status for details.
    the surplus (steady meat, wool, leather for books) – built, in testing
 
 **Stage 2 – mid game**
-9. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
+9. Diamonds: a second branch mine at y=-58 under the iron one (anti-xray
+   hides ore until a tunnel exposes it), lapis on the way – in testing
 10. Enchanting: enchanting table (obsidian, diamonds, a book), bookshelves
    (books from sugar cane paper + leather), lapis, and XP from mining,
    smelting and mob kills; enchant the kit (Protection, Sharpness,

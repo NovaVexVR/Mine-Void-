@@ -70,7 +70,7 @@ class Coordinator:
 
     def team_count(self, spec):
         return sum(count(b.get("inventory", {}), spec)
-                   for b in self.active().values())
+                   for b in self.active().values()) + count(self.storage(), spec)
 
     # -- equipment kit -----------------------------------------------------
     # The plan's "kit" lists gear every bot should end up with, in priority

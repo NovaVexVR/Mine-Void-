@@ -88,7 +88,10 @@ def light_the_way(g, last):
 
 MINE_DIRS = {"E": (1, 0), "W": (-1, 0), "S": (0, 1), "N": (0, -1)}
 ORES = {"iron": ("iron_ore", "deepslate_iron_ore", "coal_ore", "deepslate_coal_ore"),
-        "coal": ("coal_ore", "deepslate_coal_ore", "iron_ore", "deepslate_iron_ore")}
+        "coal": ("coal_ore", "deepslate_coal_ore", "iron_ore", "deepslate_iron_ore"),
+        # deep down: diamonds, plus lapis for enchanting, and whatever iron
+        "diamond": ("diamond_ore", "deepslate_diamond_ore", "deepslate_lapis_ore",
+                    "lapis_ore", "deepslate_iron_ore", "deepslate_gold_ore")}
 HAZARDS = ("lava", "water", "bubble_column")
 
 
@@ -116,25 +119,26 @@ def make_bow(g, facts, arrows=16):
 
 
 def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
-                length=24, timeout=900):
+                length=24, timeout=900, level=16, name="mine"):
     """Mine ore from the team's own branch mine instead of wandering into
     caves (where most miners died): a fixed spot at y=16 near the base,
     with straight 1x2 tunnels dug by hand in four directions. Every step
     the freshly exposed walls are checked for ore, which is real once
     exposed (anti-xray only fakes hidden blocks). A torch every ~10 blocks;
-    lava or water ahead ends the branch."""
+    lava or water ahead ends the branch. `level` and `name` give other
+    mines (diamonds at y=-58 in "deep_mine")."""
     pred = matcher(item)
     if not g.count(lambda i: i.endswith("_pickaxe")):
         return False
     base = facts["base"]
-    mine = facts.get("mine") or [base[0] + 6, 16, base[2] + 24]
+    mine = facts.get(name) or [base[0] + 6, level, base[2] + 24]
     g.status = "going down to the mine"
     if not g.goto(*mine, timeout=400, near=1):
         g.log(f"mine: could not get down to {mine}")
         return False
-    if not facts.get("mine"):
-        g.pending_facts["mine"] = mine
-    branches = dict(facts.get("mine_branches") or {})
+    if not facts.get(name):
+        g.pending_facts[name] = mine
+    branches = dict(facts.get(f"{name}_branches") or {})
     if branches.get("blocked"):
         branches.pop("blocked")
     d = min((k for k in MINE_DIRS if branches.get(k, 0) >= 0),
@@ -186,7 +190,7 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
         last_torch = light_the_way(g, last_torch)
     pick_up_drops(g, g.pos(), 4)
     branches[d] = n if branches.get(d, 0) >= 0 else -1
-    g.pending_facts["mine_branches"] = branches
+    g.pending_facts[f"{name}_branches"] = branches
     g.log(f"mine: branch {d} now {n} long, holding {g.count(pred)} {item}")
     return steps > 0 or g.count(pred) >= count
 
