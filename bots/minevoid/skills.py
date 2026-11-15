@@ -492,17 +492,28 @@ def store(g, facts):
 
 
 def withdraw(g, facts, item, n):
-    """Take at least n of an item out of the base chest (whole stacks)."""
+    """Take n of an item out of the base chest (whole stacks for big n)."""
     if not open_chest(g, facts):
         return None
     menu, got = g.menu(), 0
     for i in range(27):
-        if g.count(lambda j: j == item) >= n:
+        need = n - g.count(lambda j: j == item)
+        if need <= 0:
             break
         st = menu.getSlot(i).getItem()
-        if not st.isEmpty() and short(str(st.toString()).split(" ", 1)[1]) == item:
-            g.click(i, 0, "QUICK_MOVE")
-            time.sleep(0.2)
+        if st.isEmpty() or short(str(st.toString()).split(" ", 1)[1]) != item:
+            continue
+        free = sorted(set(range(36)) - {s.slot for s in m.player_inventory()})
+        if need >= st.getCount() or need > 16 or not free:
+            g.click(i, 0, "QUICK_MOVE")  # the whole stack
+        else:
+            # Just what we need: a whole stack left the rest stranded in
+            # one bot's pockets (22 leather when a chestplate needed 8).
+            g.click(i)                                  # stack onto the cursor
+            for _ in range(need):
+                g.click(g.menu_slot(free[0], 27), 1)    # right-click: drop one
+            g.click(i)                                  # the rest back
+        time.sleep(0.2)
     contents = chest_contents(g)
     g.close_screen()
     g.pending_facts["storage"] = contents  # (a stale record kept re-sending bots)
