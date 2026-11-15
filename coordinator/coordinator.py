@@ -12,6 +12,7 @@ doing plus the shared facts (base location, ...). The plan is plain data
 import json
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -455,6 +456,47 @@ class Coordinator:
                              for n, b in self.bots.items()}}
 
 
+SERVER_LOG = os.path.join(ROOT, "server", "server.out")
+MILESTONES = (("base", "underground base"), ("farm_room", "farm room"),
+              ("pen", "animal pen"), ("mine", "branch mine"),
+              ("deep_mine", "deep mine (diamonds)"), ("portal", "nether portal"),
+              ("enchanting_table", "enchanting table"),
+              ("blaze_spawner", "blaze spawner found"), ("stronghold", "stronghold located"),
+              ("end_portal", "end portal open"), ("dragon_dead", "dragon killed"))
+DEATH_WORDS = re.compile(r" (Void\w*) (was [a-z ]+?(?: by \w[\w ]*)?|drowned|starved to death|"
+                         r"fell [a-z ]+|blew up|hit the ground too hard|burned to death|"
+                         r"suffocated in a wall|withered away|froze to death|died)\s*$")
+_stats = {"at": 0}
+
+
+def log_stats():
+    """Deaths and GrimAC flags from the server's console log (same machine
+    only), for the dashboard. Re-read at most every 30 s."""
+    if time.time() - _stats["at"] < 30:
+        return _stats
+    deaths, by_bot, grim = {}, {}, {}
+    hour_ago = time.strftime("%H:%M", time.localtime(time.time() - 3600))
+    try:
+        with open(SERVER_LOG, errors="replace") as f:
+            for line in f:
+                line = re.sub(r"\x1b\[[0-9;]*m", "", line).rstrip()
+                if "Grim" in line and " failed " in line:
+                    w = line.split()
+                    i = w.index("failed")
+                    if line[1:6] >= hour_ago or hour_ago > time.strftime("%H:%M"):
+                        grim[w[i + 1]] = grim.get(w[i + 1], 0) + 1
+                    continue
+                hit = DEATH_WORDS.search(line)
+                if hit and "<" not in line:
+                    cause = re.sub(r"(was \w+ by \w+).*", r"\1", hit.group(2))
+                    deaths[cause] = deaths.get(cause, 0) + 1
+                    by_bot[hit.group(1)] = by_bot.get(hit.group(1), 0) + 1
+    except OSError:
+        pass
+    _stats.update(at=time.time(), deaths=deaths, by_bot=by_bot, grim=grim)
+    return _stats
+
+
 PAGE = """<!doctype html><title>Mine-Void</title><meta http-equiv=refresh content=5>
 <body style="font:14px monospace;background:#111;color:#ddd"><h2>Mine-Void: %s</h2>
 <pre>%s</pre>"""
@@ -488,7 +530,15 @@ def make_handler(co):
             st = co.state()
             if self.path == "/state":
                 return self.send(st)
-            lines = [f"facts: {st['facts']}", ""]
+            lines = ["roadmap: " + "  ".join(
+                ("[x] " if co.facts.get(k) else "[ ] ") + label for k, label in MILESTONES), ""]
+            ls = log_stats()
+            lines.append("deaths since the server started: " + ", ".join(
+                f"{n} {b}" for b, n in sorted(ls["by_bot"].items())) or "none")
+            lines += [f"  {n:3} {c}" for c, n in sorted(ls["deaths"].items(), key=lambda x: -x[1])]
+            lines.append("GrimAC flags, last hour: " + (", ".join(
+                f"{c} {n}" for c, n in sorted(ls["grim"].items(), key=lambda x: -x[1])) or "none"))
+            lines += ["", f"facts: {st['facts']}", ""]
             for n, b in sorted(st["bots"].items()):
                 lines.append(f"{n:8} {b['task']:28} hp={b['health']} food={b['food']}"
                              f" pos={b['pos']} [{b['status']}] ({b['age']}s ago)")

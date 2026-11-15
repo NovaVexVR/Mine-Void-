@@ -206,7 +206,10 @@ the blaze fight, enderman hunting, finding the portal room, the End.
 * Bots on your own machines: coordinator reachable over the network with a
   token, `client/run_bots.py` launcher for Linux/Windows/macOS (done;
   tested headless on Linux)
-* More than three bots; dashboard with death and anti-cheat stats
+* More than three bots (`scripts/start.sh N`, or `client/run_bots.py` from
+  other machines); dashboard at http://127.0.0.1:8765/ with the roadmap
+  checklist, deaths by cause and bot, and GrimAC flags of the last hour
+  (done)
 
 ## Status
 
