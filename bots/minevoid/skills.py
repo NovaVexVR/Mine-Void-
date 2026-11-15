@@ -294,7 +294,7 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
                 g.pending_facts["lava"] = lava
             branches[d] = -1  # never extend it again
             break
-        for c in look[:2]:
+        for c in (look[1], look[0]):  # head height first: it hides the lower one
             for _ in range(4):  # gravel/sand can keep falling in
                 if g.block(*c) in AIR:
                     break
