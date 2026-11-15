@@ -2227,6 +2227,39 @@ def light_farm(g, facts):
     g.log(f"farm lit: {sum(g.block(*c) in ('torch', 'wall_torch') for c in corners)}/4 corners")
 
 
+def light_exit(g, facts, radius=12, spacing=5):
+    """Torches on the ground around the top of the base stairs: mobs
+    spawned and waited there in the dark, and 15 of 54 deaths in a day
+    happened within 12 blocks of it. (Monsters only spawn in total
+    darkness, so a torch every few blocks stops them.)"""
+    ex, ey, ez = facts["base_exit"]
+    if g.count(lambda i: i == "torch") < 4 and not make_torches(g, facts, count=16):
+        return False
+    if not g.goto(ex, ey, ez, timeout=300, near=2):
+        return False
+    hm = height_map(g, ex, ez, ey, radius + 1)
+    spots = []
+    for x in range(ex - radius, ex + radius + 1, spacing):
+        for z in range(ez - radius, ez + radius + 1, spacing):
+            h = hm.get((x, z))
+            if not h or h[2] not in AIR or h[1] in ("water", "lava") or h[1].endswith("_leaves"):
+                continue
+            spots.append((x, h[0] + 1, z))
+    spots.sort(key=lambda c: math.dist(c, (ex, ey, ez)))
+    lit = 0
+    for c in spots:
+        if not g.count(lambda i: i == "torch"):
+            break
+        if g.block(*c) in ("torch", "wall_torch"):
+            lit += 1
+            continue
+        g.status = f"lighting the base exit ({lit}/{len(spots)})"
+        if g.place_at("torch", *c):
+            lit += 1
+    g.log(f"exit: {lit}/{len(spots)} torches around the top of the stairs")
+    return {"exit_lit": True} if lit >= len(spots) * 2 // 3 else False
+
+
 def plant_trees(g, facts, max_trees=12):
     """Saplings in a grid on open grass near the top of the stairs: the
     trees around the base were all cut down, and wood runs went further
@@ -2607,6 +2640,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "wait_for_food": wait_for_food,
     "make_torches": make_torches,
     "plant_trees": plant_trees,
+    "light_exit": light_exit,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}
