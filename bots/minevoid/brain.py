@@ -360,6 +360,12 @@ class Agent:
             # Get home before dark: out in the open at night is where most
             # deaths (and lost loot) happened.
             task = {"id": "shelter", "skill": "shelter", "args": {}}
+        elif g.is_dusk() and g.overworld() and not task.get("night") \
+                and not task.get("at_base") and "base" in self.facts \
+                and math.dist(g.pos(), self.facts["base"]) <= 60:
+            # Dusk at home: do not head out (Void2 left the base at dusk
+            # twice and the zombies by the stairs killed it both times).
+            task = {"id": "shelter", "skill": "shelter", "args": {}}
         elif g.is_night() and g.overworld() and not task.get("night") and (
                 task.get("surface") or unarmed
                 or ("base" in self.facts and not task.get("at_base"))):
