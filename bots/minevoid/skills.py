@@ -525,7 +525,11 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     return True
 
 
-crafting.gather_hook = lambda g, blocks, item, n: gather(g, {}, blocks, item, n)
+# Materials a recipe is missing: with the team's facts (danger spots, the
+# mine, the tree room) and never after dark - a harvester needing logs for
+# a hoe explored into the night and drowned.
+crafting.gather_hook = lambda g, blocks, item, n: gather(
+    g, getattr(g, "facts", None) or {}, blocks, item, n, until_dark=True)
 
 
 ARMOR = ("_helmet", "_chestplate", "_leggings", "_boots")
