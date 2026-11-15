@@ -1441,6 +1441,14 @@ def harvest(g, facts, radius=12):
                 g.select(lambda i: i.endswith("_pickaxe"))
                 g.break_block(*c, timeout=6)
             lay_soil(g, c, centre, (farm_xz(facts["base"])[0][0], x - 3), y)
+    for c in corners:
+        # Crops need light. (The room grew: the old corner torches stood on
+        # what are plots now and got picked up; the new corners need them.)
+        if g.count(lambda i: i == "torch") and g.block(*c) in AIR:
+            if math.dist(g.pos(), (c[0] + .5, y + .5, c[2] + .5)) > 3.5:
+                g.goto_near(c[0], y + 1, c[2], radius=2, timeout=20)
+                g.stop()
+            g.place_at("torch", *c)
     if not g.count(lambda i: i.endswith("_hoe")):
         # no hoe, no farmland: 21 seeds sat unplanted (wooden unless we
         # carry stone: digging for it took the harvester out of the base)
