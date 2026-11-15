@@ -106,6 +106,26 @@ background of every skill bots eat, fight (backing off from creepers), dig
 in when badly hurt or unarmed among mobs, and go back for their gear once
 after dying.
 
+### Run it all on your own machine
+
+One command on Linux (written for Arch / CachyOS; apt and dnf also work):
+
+```bash
+git clone -b claude/minecraft-bot-server-wg4axt https://github.com/NovaVexVR/Mine-Void-.git
+cd Mine-Void- && ./play.sh          # or ./play.sh 5 for five bots
+```
+
+It installs what is missing (`jdk21-openjdk`, `python`, and
+`xorg-server-xvfb` for headless bots) with `sudo pacman`, downloads Paper,
+the plugins and the client mods on the first run, restores the newest
+world snapshot from `snapshots/` (the cloud trial's world: base, farm
+rooms, mine shaft, tree room, the bots' beds and inventories, and the
+coordinator's memory of them), and starts the server, the coordinator and
+the bots. Each bot opens a small game window; `HEADLESS=1 ./play.sh` runs
+them on a virtual display instead. Ctrl+C stops everything. The dashboard
+is at http://127.0.0.1:8765/. Budget about a core and 1.5 GB RAM per bot
+plus ~3 GB for the server.
+
 ### Scaling
 
 `scripts/start.sh N` starts N bots (`Void1..VoidN`). Each client renders on

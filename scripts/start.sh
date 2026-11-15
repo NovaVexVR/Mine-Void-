@@ -18,6 +18,6 @@ for i in $(seq "$N"); do
     echo "$name already running"; continue
   fi
   scripts/mc-cmd.sh "whitelist add $name"
-  python3 client/launch.py "$name"
+  python3 client/launch.py "$name" ${LAUNCH_FLAGS:-}
   sleep 20   # stagger client start-up, it is CPU heavy
 done
