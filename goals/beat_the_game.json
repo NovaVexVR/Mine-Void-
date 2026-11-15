@@ -43,7 +43,7 @@
    {"id": "bow", "scope": "each", "skill": "make_bow", "needs_fact": "base", "storage_has": {"string": 3}, "have": {"bow": 1}, "args": {}, "note": "skeletons and pillagers out-range a sword"},
    {"id": "arrows", "scope": "each", "skill": "make_bow", "requires": {"bow": 1}, "have": {"arrow": 8}, "args": {}},
    {"id": "smelt_trip", "at_base": true, "scope": "each", "skill": "smelt", "preempt": true, "requires": {"raw_iron": 3}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
-   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
+   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}, {"book": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},
    {"id": "iron_ore", "scope": "team", "slots": 2, "skill": "branch_mine", "kit_mine": true, "trip": 10, "args": {"blocks": "iron", "item": "raw_iron|iron_ingot"}, "note": "two miners dig until the whole team's kit is paid for"},
    {"id": "smelt_iron", "at_base": true, "scope": "each", "skill": "smelt", "requires": {"raw_iron": 1}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true}
@@ -55,8 +55,11 @@
   {"id": "diamonds", "title": "Diamonds", "tasks": [
    {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"}
   ]},
+  {"id": "enchanting", "title": "Enchanting", "tasks": [
+   {"id": "books", "scope": "team", "slots": 1, "skill": "make_books", "surface": true, "needs_fact": "base", "storage_has": {"leather": 1}, "team_have": {"book": 1}, "args": {"books": 3}, "note": "paper from sugar cane by the water + leather from the chest; one book for the table, the rest towards bookshelves"}
+  ]},
   {"id": "todo", "title": "Not implemented yet", "tasks": [
-   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "enchanting (table, bookshelves, lapis, xp) -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
+   {"id": "next", "scope": "team", "slots": 0, "skill": "idle", "args": {}, "note": "enchanting table (obsidian), bookshelves, lapis, xp -> obsidian/nether portal -> blaze rods -> ender pearls -> stronghold -> dragon"}
   ]}
  ],
  "kit": {"material": "iron_ingot", "raw": "raw_iron", "items": [["iron_pickaxe", 3], ["shears", 2], ["shield", 1], ["iron_sword", 2], ["iron_chestplate", 8], ["iron_helmet", 5], ["iron_boots", 4], ["iron_leggings", 7]]},

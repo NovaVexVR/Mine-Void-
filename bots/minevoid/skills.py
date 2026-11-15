@@ -118,6 +118,36 @@ def make_bow(g, facts, arrows=16):
     return has("bow") > 0 and has("arrow") > 0
 
 
+def make_books(g, facts, books=3):
+    """Books for the enchanting table and bookshelves: leather from the
+    chest (hunting piled it up), paper from sugar cane by the water."""
+    has = lambda i: g.count(lambda j: j == i)
+    need = books - has("book")
+    if need <= 0:
+        return True
+    if has("leather") < need:
+        withdraw(g, facts, "leather", need - has("leather"))
+    n = min(need, has("leather"))
+    if not n:
+        g.log("books: no leather")
+        return False
+    cane = max(0, 3 * n - has("paper") - has("sugar_cane"))
+    if cane:
+        water = facts.get("water")
+        if water and math.dist(g.pos(), water) > 32:
+            g.status = "heading for the water to find sugar cane"
+            g.goto_near(*water, radius=8, timeout=240)
+        gather(g, facts, "sugar_cane", "sugar_cane", has("sugar_cane") + cane,
+               timeout=600, until_dark=True)
+    if has("sugar_cane") >= 3:
+        crafting.craft(g, "paper", has("sugar_cane") // 3)
+    n = min(n, has("paper") // 3, has("leather"))
+    if n:
+        crafting.craft(g, "book", n)
+    g.log(f"books: {has('book')} book(s), {has('paper')} paper left")
+    return has("book") > 0
+
+
 def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
                 length=24, timeout=900, level=16, name="mine"):
     """Mine ore from the team's own branch mine instead of wandering into
@@ -2164,5 +2194,6 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "make_bow": make_bow,
     "water_farm": water_farm,
     "build_pen": build_pen,
+    "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}

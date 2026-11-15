@@ -25,6 +25,7 @@ BLOCK_GROUPS = {
     "grass": "short_grass tall_grass",
     "dirt": "dirt grass_block",
     "gravel": "gravel",
+    "sugar_cane": "sugar_cane",
 }
 RANGED = ("skeleton", "stray", "bogged", "pillager", "witch", "creeper")
 BARITONE_SETTINGS = {

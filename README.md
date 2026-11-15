@@ -148,7 +148,8 @@ live runs; see Status for details.
 **Stage 2 – mid game**
 9. Diamonds: a second branch mine at y=-58 under the iron one (anti-xray
    hides ore until a tunnel exposes it), lapis on the way – in testing
-10. Enchanting: enchanting table (obsidian, diamonds, a book), bookshelves
+10. Enchanting: books (sugar cane paper + chest leather – in testing),
+   enchanting table (obsidian, diamonds, a book), bookshelves
    (books from sugar cane paper + leather), lapis, and XP from mining,
    smelting and mob kills; enchant the kit (Protection, Sharpness,
    Efficiency, Unbreaking, Power on a bow). Later an anvil to combine books
