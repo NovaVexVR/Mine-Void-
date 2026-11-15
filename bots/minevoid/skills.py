@@ -383,6 +383,9 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
 def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
+    if blocks in ("iron", "coal") and not g.count(lambda i: i == "torch") \
+            and not g.count(CLASSES["coal"]):
+        make_torches(g, facts, count=8)  # caves are dark: light them as we go
     end, misses = time.time() + timeout, 0
     last_progress, last_state, stuck = time.time(), None, 0
     last_torch = None
