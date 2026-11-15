@@ -215,6 +215,12 @@ the blaze fight, enderman hunting, finding the portal room, the End.
 
 ## Status
 
+World setting changed during the trial: pillager patrols are switched off
+(`gamerule spawn_patrols false`, set from the server console) until the
+bots have bows and armour. Patrols spawn around players at random and
+shot bots at the base exit six times; swords and a shield were not
+enough. Turn them back on with `scripts/mc-cmd.sh "gamerule spawn_patrols true"`.
+
 Seen working in live runs with three bots:
 
 * server + anti-cheat + anti-xray, headless clients joining, autorun agent
