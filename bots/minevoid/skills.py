@@ -386,7 +386,9 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
         prey = [e for e in m.entities(type=f".*\\.({animals})$", max_distance=60,
                                       sort="nearest", limit=8)
                 if (e.position[1] > 55 or e.position[1] > g.pos()[1] - 4)
-                and e.uuid not in escaped and spare_from_pen(e, facts)][:1]
+                and e.uuid not in escaped and spare_from_pen(e, facts)
+                # (a hunter chased a swimming animal into a lake and drowned)
+                and g.block(*[math.floor(v) for v in e.position]) != "water"][:1]
         if not prey:
             misses += 1
             if misses > 20:
@@ -418,6 +420,9 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
             if not cur:
                 break  # dead (or gone)
             pos = cur[0].position
+            if g.mc.player.getAirSupply() < 200:
+                escaped.add(target.uuid)  # out of breath: let it go
+                break
             if math.dist(g.pos(), pos) > 2.5:
                 # A hit animal panics and runs: re-aim the path often.
                 if time.time() - last_goto > 0.8:
