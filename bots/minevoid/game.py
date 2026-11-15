@@ -167,7 +167,10 @@ class Game:
         return t < 12800 and 12800 - t < dist * 12 + 1200
 
     def is_night(self):
-        return 12800 < m.world_info().day_ticks % 24000 < 23200
+        # (and the first minutes after sunrise: skeletons and zombies have
+        # not burned yet, and bots leaving at dawn were shot at the door)
+        t = m.world_info().day_ticks % 24000
+        return t > 12800 or t < 1000
 
     def block(self, x, y, z):
         return short(m.getblock(x, y, z))
