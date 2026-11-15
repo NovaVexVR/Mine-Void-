@@ -133,22 +133,32 @@ live runs; see Status for details.
    done; shears to shear sheep instead of killing them
 4. Iron kit for every bot: pickaxe, shears, shield, sword (done for two
    bots), then full armour
+5. A base that stays shut: shell rebuilt from inside with planks (Baritone
+   may not break them), no digging or placing by Baritone in the rooms, the
+   door closed behind every bot and raised to a level step – done
+6. Safe iron: a branch mine dug down from the base to y~16 with lit,
+   one-wide tunnels, instead of the caves that killed most miners
+7. Ranged combat: bow and arrows (string from spiders, feathers from
+   chickens - both pile up in the chest) for skeletons, pillagers and
+   creepers; a shield for everyone before going underground
+8. Animal pens next to the base: lure cows/sheep with wheat, breed them
+   (steady meat, wool, leather for books)
 
 **Stage 2 – mid game**
-5. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
-6. Enchanting: enchanting table (obsidian, diamonds, a book), bookshelves
+9. Diamonds (real tunnels at diamond depth; anti-xray hides ore positions)
+10. Enchanting: enchanting table (obsidian, diamonds, a book), bookshelves
    (books from sugar cane paper + leather), lapis, and XP from mining,
    smelting and mob kills; enchant the kit (Protection, Sharpness,
    Efficiency, Unbreaking, Power on a bow). Later an anvil to combine books
    and repair gear
-7. Nether portal (obsidian via bucket + lava, or mined with diamond pick)
-8. Nether: gold armour for piglins, fortress, ~6 blaze rods
-9. ~12 ender pearls (endermen, or bartering gold with piglins)
+11. Nether portal (obsidian via bucket + lava, or mined with diamond pick)
+12. Nether: gold armour for piglins, fortress, ~6 blaze rods
+13. ~12 ender pearls (endermen, or bartering gold with piglins)
 
 **Stage 3 – the dragon**
-10. Eyes of ender, triangulate the stronghold from two throw points
-11. Activate the portal, bring blocks, bows, beds and food
-12. Destroy the end crystals, kill the dragon
+14. Eyes of ender, triangulate the stronghold from two throw points
+15. Activate the portal, bring blocks, bows, beds and food
+16. Destroy the end crystals, kill the dragon
 
 **Infrastructure** (alongside)
 * A small Fabric mod for instant inventory work (crafting via Minescript
