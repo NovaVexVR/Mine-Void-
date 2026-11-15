@@ -2335,9 +2335,16 @@ def light_exit(g, facts, radius=12, spacing=5):
         g.status = f"lighting the base exit ({lit}/{len(spots)})"
         if g.place_at("torch", *c):
             lit += 1
-    g.log(f"exit: {lit}/{len(spots)} torches around the top of the stairs")
-    # (some grid spots are under trees or in water: enough is enough)
-    return {"exit_lit": True} if lit >= min(8, len(spots) // 3 + 1) else False
+    # Count every torch around the exit, wherever it stands (a torch one
+    # block off its grid point, or on a block that took none, still lights).
+    area = [[cx, cy, cz] for cx in range(ex - radius, ex + radius + 1)
+            for cz in range(ez - radius, ez + radius + 1) for cy in range(ey - 6, ey + 7)]
+    total = 0
+    for i in range(0, len(area), 4096):
+        total += sum(1 for k in m.getblocklist(area[i:i + 4096])
+                     if k and short(k) in ("torch", "wall_torch"))
+    g.log(f"exit: placed {lit}, {total} torches within {radius} of the top of the stairs")
+    return {"exit_lit": True} if total >= 8 else False
 
 
 def build_tree_farm(g, facts):
