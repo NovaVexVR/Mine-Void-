@@ -341,6 +341,11 @@ def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
             g.stop()
             return False
         come_home(g, facts)
+        if g.in_rooms(g.pos()) and facts.get("base_exit"):
+            # In the base nothing may be dug: out by the door first (a
+            # harvester sat "gathering grass" inside the farm for half an hour)
+            g.status = "leaving the base"
+            g.via_door(*facts["base_exit"])
         if blocks in ("iron", "coal", "stone"):
             last_torch = light_the_way(g, last_torch)
         avoid_danger(g, facts)
