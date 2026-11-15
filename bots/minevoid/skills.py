@@ -376,6 +376,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
     as far as other workers."""
     food = matcher(item)
     end, misses, visited = time.time() + timeout, 0, set()
+    escaped = set()  # animals we chased and could not kill (on a cliff, fenced)
     while g.count(food) < count and time.time() < end:
         if fed and g.hunger() >= fed:
             return True  # an emergency meal is eaten as caught: stop once full
@@ -385,7 +386,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
         prey = [e for e in m.entities(type=f".*\\.({animals})$", max_distance=60,
                                       sort="nearest", limit=8)
                 if (e.position[1] > 55 or e.position[1] > g.pos()[1] - 4)
-                and spare_from_pen(e, facts)][:1]
+                and e.uuid not in escaped and spare_from_pen(e, facts)][:1]
         if not prey:
             misses += 1
             if misses > 20:
@@ -427,6 +428,11 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
                 g.b("stop")
                 g.sleep(0.4)
         g.aura_targets([])
+        if m.entities(uuid=target.uuid, max_distance=80):
+            # Still alive after the whole chase: unreachable. (All three
+            # bots spent a morning circling one pig on a ledge.)
+            escaped.add(target.uuid)
+            continue
         g.goto(*[math.floor(v) for v in pos], timeout=15, near=1)  # drops
         g.sleep(1)
     g.aura_targets([])
