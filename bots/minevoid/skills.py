@@ -778,8 +778,8 @@ def recover(g, facts, pos):
     while time.time() < end and math.dist(g.pos(), pos) > 1.5 and g.busy():
         g.sleep(1)
         if math.dist(g.pos(), pos) < 24:
-            guard = [e for e in g.hostiles(40, visible=False)
-                     if math.dist(e.position, pos) < 12]
+            guard = [e for e in g.hostiles(48, visible=False)
+                     if math.dist(e.position, pos) < 20]  # (pillagers shoot from afar)
             if guard:
                 # The mob that killed us is still there: Void3 died twice
                 # to the same Drowned walking back for its things.

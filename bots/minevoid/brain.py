@@ -305,6 +305,8 @@ class Agent:
         if forced:
             pass
         elif death and death[0] and time.time() - death[1] < 240 \
+                and not any(len(d) > 4 and d[4] >= 43200 and math.dist(d[:3], death[0]) < 20
+                            for d in self.facts.get("danger", [])) \
                 and not g.is_night():
             # Dropped items last five minutes: go and pick our gear back up,
             # once. (A death while doing this cancels it; see tick.)
