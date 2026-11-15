@@ -694,6 +694,7 @@ def recover(g, facts, pos):
     g.status = f"recovering gear at {pos}"
     x, y, z = pos
     g.b(f"goto {x} {y} {z}")
+    g.sleep(2)  # (Baritone needs a moment to start pathing)
     end = time.time() + 200
     while time.time() < end and math.dist(g.pos(), pos) > 1.5 and g.busy():
         g.sleep(1)
