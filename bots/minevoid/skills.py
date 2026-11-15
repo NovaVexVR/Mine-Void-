@@ -1170,17 +1170,27 @@ def fish(g, facts, count=20, timeout=900):
     food = CLASSES["food"]
     home = facts.get("base") or g.block_pos()
     water = None
-    for _ in range(4):
-        water = find_water(g, g.block_pos(), 8)
-        if water:
-            break
-        # Baritone knows where water is from the chunks it has seen; a big
-        # block-region read here would exceed Minescript's size limit.
+    farm = facts.get("farm")
+    if facts.get("farm_room") and farm and g.overworld() and g.block(*farm) == "water":
+        # The farm room's water hole: fishing from inside the sealed base
+        # (fishers at lakes kept meeting the Drowned).
+        x, y, z = facts["base"]
+        g.status = "going to fish in the farm room"
+        if g.goto(x - 4, y + 1, z, timeout=180, near=1):
+            water = list(farm)
+    water = water or find_water(g, g.block_pos(), 8)
+    if not water:
+        # The team's known water, or a sparse scan of the loaded chunks.
+        # (Baritone's "goto water" wandered 250 blocks off into the dark
+        # and the fisher died there.)
         come_home(g, facts, leash=LEASH // 2)
-        g.b("goto water")
-        g.sleep(2)
-        g.wait(lambda: not g.busy(), 120, 1)
-        g.stop()
+        spot = facts.get("water") or scan_for_water(g)
+        if spot:
+            g.pending_facts["water"] = spot
+            g.status = "walking to the water"
+            g.goto_near(*spot, radius=3, timeout=240)
+            g.stop()
+            water = find_water(g, g.block_pos(), 8)
     if not water:
         g.log("no water to fish in")
         return False
