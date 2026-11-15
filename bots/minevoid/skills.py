@@ -902,8 +902,8 @@ def restore_door_step(g, facts):
         return
     planks = next((s.item for s in m.player_inventory()
                    if short(s.item).endswith("_planks")), None)
-    if planks is None and not crafting.craft(g, "planks"):
-        return
+    if planks is None and not (g.count(CLASSES["log"]) and crafting.craft(g, "planks")):
+        return  # (no wood on us: no trip out for it from inside the base)
     planks = planks and short(planks) or next(
         i for i in g.inv() if i.endswith("_planks"))
     if g.place_against(planks, *step):
