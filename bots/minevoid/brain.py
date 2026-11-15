@@ -15,6 +15,7 @@ import traceback
 import urllib.request
 
 import minescript as m
+from java import JavaClass
 
 from . import craft, endgame, game, items, skills
 from .game import Game
@@ -133,6 +134,16 @@ class Agent:
             key = getattr(self, "death_key", None)
         first = not hasattr(self, "death_key")
         died = not first and key is not None and key != self.death_key
+        # A second death on the very same block leaves that record as it
+        # was; a respawn still gives us a new player object in the same
+        # dimension (a portal trip changes the dimension too).
+        if not hasattr(self, "_identity"):
+            self._identity = JavaClass("java.lang.System").identityHashCode
+        ident = (self._identity(g.mc.player), g.dim())
+        last = getattr(self, "player_ident", ident)
+        if not first and key is not None and ident[0] != last[0] and ident[1] == last[1]:
+            died = True
+        self.player_ident = ident
         self.death_key = key
         if died:
             ddim, pos = key[0], list(key[1:])
