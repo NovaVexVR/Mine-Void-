@@ -34,7 +34,9 @@ BARITONE_SETTINGS = {
     "legitMine": "true",
     "legitMineYLevel": "16",
     "allowParkour": "false",
-    "allowSprint": "true",
+    # Walking costs no hunger, sprinting a lot: with the animals near the
+    # base hunted out, sprinting everywhere starved the whole team.
+    "allowSprint": "false",
     "antiCheatCompatibility": "true",
     # Turn the real camera, not just the rotation sent to the server: GrimAC
     # (BadPacketsJ) rejects block placements whose look direction differs

@@ -2325,7 +2325,7 @@ def lure(g, facts, pen, kind, timeout=300):
         g.log(f"lure: {'brought' if got else 'failed to bring'} a {kind} into the pen")
         return got
     finally:
-        g.b("set allowSprint true")
+        g.b("set allowSprint " + game.BARITONE_SETTINGS["allowSprint"])
         g.stop()
 
 
