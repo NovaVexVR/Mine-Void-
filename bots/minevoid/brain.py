@@ -89,6 +89,8 @@ class Agent:
         self.facts.update(reply["facts"], _team=reply["team"],
                           _animals=reply.get("animals", []))
         self.g.facts = self.facts  # Game routes through the base door with it
+        skills.TREE_FARM["on"] = bool(self.facts.get("tree_farm")
+                                      or self.facts.get("tree_farm_digging"))
         return reply["task"]
 
     def sightings(self):

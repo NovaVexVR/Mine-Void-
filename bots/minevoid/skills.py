@@ -395,6 +395,10 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
 def gather(g, facts, blocks, item, count, timeout=900, until_dark=False):
     """Mine blocks with Baritone until `count` matching items are held."""
     pred, names = matcher(item), BLOCK_GROUPS[blocks]
+    if blocks == "logs" and facts.get("tree_farm") and g.overworld():
+        tree_harvest(g, facts)  # our own trees first, no wandering
+        if g.count(pred) >= count:
+            return True
     if blocks == "stone" and facts.get("mine") and facts.get("mine_lit") \
             and g.count(lambda i: i.endswith("_pickaxe")) and g.overworld():
         # Cobble from our own lit tunnels: Baritone went for the nearest
@@ -1057,6 +1061,37 @@ FILLERS = ("cobblestone", "cobbled_deepslate", "dirt", "andesite", "diorite",
 CLUTTER = FILLERS + ("gravel", "sand", "stone", "deepslate", "grass_block")
 
 
+TREE_FARM = {"on": False}  # set from the team's facts (brain.report)
+
+
+def tree_layout(base):
+    """The tree room north of the base, a level below it: a 7x7 room with
+    the walking floor at base-7 and air up to base-2 (all within reach
+    from the floor: Baritone may not dig inside the base, so it is dug by
+    hand), four saplings on dirt set into the floor, torches in the
+    corners and the middle, and a 1-wide stair down from the base room's
+    north wall. (The ground over the base is only 5-7 blocks up: no room
+    for trees at the base's own level.)"""
+    x, y, z = base
+    fy = y - 7                                   # walking level (feet)
+    # Column by column outward from the corridor, each top to bottom: from
+    # the floor already cleared, the next column is in reach all the way up.
+    sx0 = x + 2  # the stair column: x and its neighbours are the furniture
+    cols = sorted(((cx, cz) for cz in range(z - 11, z - 18, -1)
+                   for cx in range(x - 3, x + 4)),
+                  key=lambda c: (abs(c[0] - sx0) + abs(c[1] - (z - 10)), c))
+    room = [(cx, cy, cz) for cx, cz in cols for cy in range(y - 2, fy - 1, -1)]
+    stairs = [(sx0, y - k, z - 2 - k) for k in range(1, 8)]   # stand cells
+    entry = [(sx0, y + 1, z - 2), (sx0, y, z - 2)]  # the base room in front of it
+    stair_cells = entry + [(sx, sy + d, sz) for sx, sy, sz in stairs for d in (2, 1, 0)]
+    corridor = [(sx0, fy + d, z - 10) for d in (2, 1, 0)]
+    spots = [(x - 2, fy, z - 16), (x + 2, fy, z - 16), (x - 2, fy, z - 12), (x + 2, fy, z - 12)]
+    torches = [(x - 3, fy, z - 17), (x + 3, fy, z - 17), (x - 3, fy, z - 11),
+               (x + 3, fy, z - 11), (x, fy, z - 14)]
+    return {"room": room, "stairs": stairs, "dig": stair_cells + corridor + room,
+            "spots": spots, "torches": torches, "centre": (x, fy, z - 14)}
+
+
 def base_interior(base, farm_room=False):
     """Cells of the rooms themselves: the base room, and the farm room and
     its doorway west of it."""
@@ -1068,6 +1103,8 @@ def base_interior(base, farm_room=False):
         cells |= {(cx, cy, cz) for cx in range(x0, x1 + 1)
                   for cz in range(z0, z1 + 1) for cy in range(y, y + 3)}
         cells |= {(x - 3, cy, z) for cy in range(y, y + 3)}
+    if TREE_FARM["on"]:
+        cells |= set(tree_layout(base)["dig"])
     return cells
 
 
@@ -1150,12 +1187,17 @@ def base_openings(g, base, farm_room=False):
     if farm_room:  # the farm room (and its doorway) west of the base
         lo = (x - 11, y - 2, z - 4)
         hi = (hi[0], hi[1], z + 4)
+    if TREE_FARM["on"]:  # the tree room and its stair, north and below
+        lo = (min(lo[0], x - 4), y - 9, z - 18)
     # (get_block_region returns empty entries away from the player;
     # getblocklist reads the same positions reliably in one call.)
     cells = [(cx, cy, cz) for cx in range(lo[0] - 1, hi[0] + 2)
              for cy in range(lo[1] - 1, hi[1] + 2)
              for cz in range(lo[2] - 1, hi[2] + 2)]
-    kinds = dict(zip(cells, m.getblocklist([list(c) for c in cells])))
+    kinds = {}
+    for i in range(0, len(cells), 4096):  # (Minescript caps one request)
+        part = cells[i:i + 4096]
+        kinds.update(zip(part, m.getblocklist([list(c) for c in part])))
     if any(k is None or "void_air" in k for k in kinds.values()):
         raise ValueError("base not loaded")  # unknown, not "sealed"
     # (the head room kept open above the door counts as closed)
@@ -2294,6 +2336,121 @@ def light_exit(g, facts, radius=12, spacing=5):
     return {"exit_lit": True} if lit >= min(8, len(spots) // 3 + 1) else False
 
 
+def build_tree_farm(g, facts):
+    """Dig the tree room (see tree_layout), light it, set dirt into the
+    floor and plant what saplings we have."""
+    if facts.get("tree_farm"):
+        return {"tree_farm": True}
+    base = facts["base"]
+    x, y, z = base
+    lay = tree_layout(base)
+    # rock over the room: at least 4 blocks below the ground everywhere
+    hm = height_map(g, x, z - 14, y, 6) if math.dist(g.pos(), base) < 40 else {}
+    if hm and min(hm.get((cx, cz), (y + 20,))[0] for cx in range(x - 4, x + 5)
+                  for cz in range(z - 18, z - 9)) < y + 2:
+        g.log("tree farm: too little rock over the room")
+        return False
+    if g.count(lambda i: i == "torch") < 5:
+        make_torches(g, facts, count=8)
+    if g.count(lambda i: i == "dirt") < 4:
+        gather(g, facts, "dirt", "dirt", 4, timeout=300, until_dark=True)
+    g.status = "digging the tree room"
+    if not g.goto(x, y, z, timeout=300, near=1):
+        return False
+    # Tell the team first, or the sealing job walls the new stair up.
+    TREE_FARM["on"] = True
+    g.pending_facts["tree_farm_digging"] = True
+    left = dig_out(g, lay["dig"], tries=3)
+    if left:
+        g.log(f"tree farm: {len(left)} blocks left undug, e.g. {left[:3]}")
+        return False
+    cx, fy, cz = lay["centre"]
+    g.goto(cx, fy, cz, timeout=60)
+    for c in lay["torches"]:
+        if g.count(lambda i: i == "torch") and g.block(*c) in AIR:
+            g.place_at("torch", *c)
+    for sx, sy, sz in lay["spots"]:
+        soil = (sx, sy - 1, sz)
+        if g.block(*soil) not in ("dirt", "grass_block", "podzol") and \
+                g.count(lambda i: i == "dirt"):
+            if math.dist(g.pos(), (sx + .5, sy, sz + .5)) > 3.5:
+                g.goto_near(sx, sy, sz, radius=2, timeout=20)
+                g.stop()
+            g.select(lambda i: i.endswith("_pickaxe"))
+            g.break_block(*soil, timeout=6)
+            g.place_against("dirt", *soil)
+    plant_tree_spots(g, lay)
+    g.log(f"tree farm: room dug, {sum(g.block(*c) in ('torch', 'wall_torch') for c in lay['torches'])} torches")
+    return {"tree_farm": True, "tree_farm_digging": None}
+
+
+def plant_tree_spots(g, lay):
+    planted = 0
+    for sx, sy, sz in lay["spots"]:
+        sap = next((i for i in g.inv() if i.endswith("_sapling")), None)
+        if sap is None:
+            break
+        if g.block(sx, sy, sz) not in AIR or \
+                g.block(sx, sy - 1, sz) not in ("dirt", "grass_block", "podzol"):
+            continue
+        if math.dist(g.pos(), (sx + .5, sy, sz + .5)) > 3.5:
+            g.goto_near(sx, sy, sz, radius=2, timeout=20)
+            g.stop()
+        if g.place_at(sap, sx, sy, sz):
+            planted += 1
+    return planted
+
+
+def chop(g, c, tries=5):
+    """Break the block at c, cutting through leaves in the way."""
+    for _ in range(tries):
+        if g.block(*c) in AIR:
+            return True
+        if math.dist(g.pos(), (c[0] + .5, c[1] + .5, c[2] + .5)) > 4:
+            g.goto_near(c[0], c[1], c[2], radius=2, timeout=15)
+            g.stop()
+        m.player_look_at(c[0] + 0.5, c[1] + 0.5, c[2] + 0.5)
+        time.sleep(0.25)
+        hit = m.player_get_targeted_block(4.5)
+        if not hit:
+            continue
+        if list(hit.position) == list(c):
+            g.select(lambda i: i.endswith("_axe"))
+            g.break_block(*c, timeout=8)
+        elif short(hit.type).endswith("_leaves"):
+            g.break_block(*hit.position, timeout=4)
+        else:
+            return False
+    return g.block(*c) in AIR
+
+
+def tree_harvest(g, facts):
+    """Chop the grown trees in the tree room, pick up what the leaves drop
+    (saplings, sticks, apples) and replant."""
+    if not facts.get("tree_farm"):
+        return False
+    lay = tree_layout(facts["base"])
+    cx, fy, cz = lay["centre"]
+    g.status = "going to the tree room"
+    if not g.goto(cx, fy, cz, timeout=300, near=1):
+        return False
+    before = g.count(CLASSES["log"])
+    for sx, sy, sz in lay["spots"]:
+        trunk = [(sx, cy, sz) for cy in range(sy, sy + 7)
+                 if g.block(sx, cy, sz).endswith(("_log", "_wood"))]
+        for c in trunk:  # bottom up: the trunk stays put
+            g.status = f"chopping trees ({g.count(CLASSES['log']) - before} logs)"
+            chop(g, c)
+    cut = g.count(CLASSES["log"]) - before
+    if cut:
+        g.status = "waiting for the leaves to drop saplings"
+        g.sleep(45)
+        pick_up_drops(g, (cx, fy, cz), 6)
+    planted = plant_tree_spots(g, lay)
+    g.log(f"tree farm: {cut} logs, {planted} saplings planted")
+    return {"tree_logs": cut} if cut or planted else True
+
+
 def plant_trees(g, facts, max_trees=12):
     """Saplings in a grid on open grass near the top of the stairs: the
     trees around the base were all cut down, and wood runs went further
@@ -2675,6 +2832,8 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "make_torches": make_torches,
     "plant_trees": plant_trees,
     "light_exit": light_exit,
+    "build_tree_farm": build_tree_farm,
+    "tree_harvest": tree_harvest,
     "make_books": make_books,
     "ranch": ranch,
           "harvest": harvest}
