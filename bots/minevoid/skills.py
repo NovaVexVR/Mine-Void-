@@ -180,6 +180,8 @@ def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=3600):
         return {name: facts[name]}
     if not g.count(lambda i: i.endswith("_pickaxe")):
         return False
+    if not g.count(lambda i: i == "torch") and not g.count(CLASSES["coal"]):
+        make_torches(g, facts, count=8)
     prog = facts.get(f"{name}_shaft")
     if prog:
         cx, cy, cz, dx, dz = prog
@@ -239,6 +241,35 @@ def dig_shaft(g, facts, start="base_exit", to_y=16, name="mine", timeout=3600):
     return False
 
 
+def light_shaft(g, facts, name="mine", start="base_exit", every=8):
+    """Torches down a straight shaft dug while nobody had coal: the dark
+    stairs and tunnels spawned the skeleton that shot a miner."""
+    top, bottom = facts.get(start), facts.get(name)
+    if not top or not bottom:
+        return False
+    if not g.count(lambda i: i == "torch") and not make_torches(g, facts, count=10):
+        return False
+    steps = top[1] - bottom[1]
+    dx = (bottom[0] - top[0]) // steps if steps else 0
+    dz = (bottom[2] - top[2]) // steps if steps else 0
+    if steps <= 0 or (top[0] + dx * steps, top[2] + dz * steps) != (bottom[0], bottom[2]):
+        g.log(f"shaft: not a straight shaft from {top} to {bottom}")
+        return False
+    lit = 0
+    for k in range(every, steps + 1, every):
+        if not g.count(lambda i: i == "torch"):
+            break
+        c = (top[0] + dx * k, top[1] - k, top[2] + dz * k)
+        g.status = f"lighting the {name} shaft ({k}/{steps})"
+        if not g.goto(*c, timeout=60):
+            continue
+        g.stop()
+        if g.place_block("torch"):
+            lit += 1
+    g.log(f"shaft: {lit} torches down the {name} shaft")
+    return {f"{name}_lit": True} if lit else False
+
+
 def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
                 length=24, timeout=900, level=16, name="mine"):
     """Mine ore from the team's own branch mine instead of wandering into
@@ -251,6 +282,10 @@ def branch_mine(g, facts, blocks="iron", item="raw_iron|iron_ingot", count=10,
     pred = matcher(item)
     if not g.count(lambda i: i.endswith("_pickaxe")):
         return False
+    if not g.count(lambda i: i == "torch") and not g.count(CLASSES["coal"]):
+        # A dark mine spawns skeletons (one shot a miner at y=16): torches
+        # from charcoal before going down.
+        make_torches(g, facts, count=8)
     base = facts["base"]
     mine = facts.get(name) or [base[0] + 6, level, base[2] + 24]
     g.status = "going down to the mine"
@@ -2504,6 +2539,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "water_farm": water_farm,
     "build_pen": build_pen,
     "dig_shaft": dig_shaft,
+    "light_shaft": light_shaft,
     "wait_for_food": wait_for_food,
     "make_torches": make_torches,
     "make_books": make_books,
