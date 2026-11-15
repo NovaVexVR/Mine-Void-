@@ -187,17 +187,19 @@ class Agent:
         if g.mc.player.getAirSupply() < 120:
             # Drowning (underwater cave, flooded tunnel): stop pathing and
             # swim straight up until we can breathe again.
-            g.b("pause")
+            # (Cancel the path, not just pause it: resuming took the bot
+            # straight back down, and six seconds of swimming was not
+            # enough from 15 blocks deep - Void1 drowned in a lake.)
+            g.b("stop")
             try:
                 m.player_set_orientation(m.player_orientation()[0], -90)
                 m.player_press_jump(True)
-                end = time.time() + 6
+                end = time.time() + 20
                 while time.time() < end and g.mc.player.getAirSupply() < 280 \
                         and g.health() > 0:
                     time.sleep(0.2)
             finally:
                 m.player_press_jump(False)
-                g.b("resume")
         if now - getattr(self, "last_shot", 0) > 2 and g.count(lambda i: i == "arrow") \
                 and g.count(lambda i: i == "bow"):
             far = [e for e in g.hostiles(24)
