@@ -679,6 +679,51 @@ def store(g, facts):
     return {"storage": contents}
 
 
+SPARES = {"stone_pickaxe": 2, "stone_sword": 2, "stone_axe": 1}
+
+
+def stock_spares(g, facts):
+    """Spare stone tools in the base chest, so a bot that died gets back to
+    work at once instead of starting from wood again (a seventh of the
+    team's time went on rebuilding tools)."""
+    stored = facts.get("storage") or {}
+    need = {k: n - stored.get(k, 0) for k, n in SPARES.items() if stored.get(k, 0) < n}
+    if not need:
+        return True
+    made = {}
+    for item, n in need.items():
+        before = g.count(lambda i, item=item: i == item)
+        crafting.craft(g, item, n)
+        made[item] = g.count(lambda i, item=item: i == item) - before
+    if not any(made.values()) or not open_chest(g, facts):
+        return False
+    for item, n in made.items():
+        for st in [s for s in m.player_inventory() if s.slot < 36 and short(s.item) == item][:n]:
+            g.click(g.menu_slot(st.slot, 27), 0, "QUICK_MOVE")
+            time.sleep(0.2)
+    contents = chest_contents(g)
+    g.close_screen()
+    g.log(f"spares: chest holds {({k: contents.get(k, 0) for k in SPARES})}")
+    return {"storage": contents}
+
+
+def restock(g, facts):
+    """After a death: the spare tools from the chest."""
+    stored = facts.get("storage") or {}
+    want = []
+    if not g.count(lambda i: i.endswith("_pickaxe")) and stored.get("stone_pickaxe"):
+        want.append("stone_pickaxe")
+    if not g.count(lambda i: i.endswith("_sword")) and stored.get("stone_sword"):
+        want.append("stone_sword")
+    if not g.count(lambda i: i.endswith("_axe")) and stored.get("stone_axe"):
+        want.append("stone_axe")
+    g.status = "restocking from the chest"
+    for item in want:
+        withdraw(g, facts, item, 1)
+    g.log(f"restocked: {want}")
+    return bool(want)
+
+
 def withdraw(g, facts, item, n):
     """Take n of an item out of the base chest (whole stacks for big n)."""
     if not open_chest(g, facts):
@@ -2844,6 +2889,8 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "dig_shaft": dig_shaft,
     "light_shaft": light_shaft,
     "wait_for_food": wait_for_food,
+    "stock_spares": stock_spares,
+    "restock": restock,
     "make_torches": make_torches,
     "plant_trees": plant_trees,
     "light_exit": light_exit,

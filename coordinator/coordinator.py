@@ -46,6 +46,9 @@ class Coordinator:
             saved = json.load(open(STATE_FILE))
             if saved.get("goal") == self.goal["name"]:
                 self.facts, self.done = saved["facts"], saved["done"]
+                # (cooldowns too: after a restart every harvest and
+                # cooldown job fired again at once)
+                self.done_at = saved.get("done_at", {})
 
     def load_goal(self, path):
         with open(os.path.join(ROOT, path)) as f:
@@ -62,7 +65,7 @@ class Coordinator:
         os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
         with open(STATE_FILE, "w") as f:
             json.dump({"goal": self.goal["name"], "facts": self.facts,
-                       "done": self.done}, f)
+                       "done": self.done, "done_at": self.done_at}, f)
 
     # -- team view ---------------------------------------------------------
     def active(self):

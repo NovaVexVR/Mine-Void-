@@ -15,6 +15,9 @@
    {"id": "stone_sword", "scope": "each", "skill": "craft", "args": {"item": "stone_sword"}, "have": {"stone_sword|iron_sword": 1}},
    {"id": "stone_axe", "scope": "each", "skill": "craft", "args": {"item": "stone_axe"}, "have": {"stone_axe|iron_axe": 1}}
   ]},
+  {"id": "spares", "title": "Spare tools in the chest", "tasks": [
+   {"id": "spare_tools", "at_base": true, "scope": "team", "slots": 1, "skill": "stock_spares", "needs_fact": "base", "requires": {"stone_pickaxe|iron_pickaxe": 1}, "cooldown": 600, "args": {}, "note": "a bot that died takes these instead of starting from wood again"}
+  ]},
   {"id": "bed_early", "title": "Bed (when the materials turn up)", "tasks": [
    {"id": "bed", "scope": "each", "skill": "bed", "preempt": true, "needs_fact": "base", "requires": {"bed_material": 1}, "args": {}, "note": "a bed moves the respawn point into the base; worth dropping other work for"}
   ]},
@@ -52,7 +55,7 @@
    {"id": "bow", "scope": "each", "skill": "make_bow", "needs_fact": "base", "storage_has": {"string": 3}, "have": {"bow": 1}, "args": {}, "note": "skeletons and pillagers out-range a sword"},
    {"id": "arrows", "scope": "each", "skill": "make_bow", "requires": {"bow": 1}, "have": {"arrow": 8}, "args": {}},
    {"id": "smelt_trip", "at_base": true, "scope": "each", "skill": "smelt", "preempt": true, "requires": {"raw_iron": 3}, "args": {"input": "raw_iron", "output": "iron_ingot", "count": 64}, "repeat": true},
-   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 6}, {"raw_iron": 8}, {"diamond": 1}, {"string": 4}, {"leather": 8}, {"book": 1}, {"ender_pearl": 1}, {"blaze_rod": 1}, {"obsidian": 1}, {"ender_eye": 1}, {"gold_ingot": 1}, {"lapis_lazuli": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
+   {"id": "store", "at_base": true, "scope": "each", "skill": "store", "needs_fact": "base", "repeat": true, "requires_any": [{"iron_ingot": 3}, {"raw_iron": 3}, {"diamond": 1}, {"string": 4}, {"leather": 8}, {"book": 1}, {"ender_pearl": 1}, {"blaze_rod": 1}, {"obsidian": 1}, {"ender_eye": 1}, {"gold_ingot": 1}, {"lapis_lazuli": 1}], "args": {}, "note": "valuables go in the base chest: they survive deaths and anyone can use them"},
    {"id": "smelt_storage", "at_base": true, "scope": "team", "slots": 1, "skill": "smelt_storage", "preempt": true, "storage_has": {"raw_iron": 3}, "repeat": true, "args": {}},
    {"id": "mine_shaft", "scope": "team", "slots": 1, "skill": "dig_shaft", "requires": {"stone_pickaxe|iron_pickaxe": 1}, "needs_fact": "base_exit", "args": {"start": "base_exit", "to_y": 16, "name": "mine"}, "fact": "mine", "note": "a lit staircase from the top of the base stairs down to y=16: walking to the mine through caves got a bot killed"},
    {"id": "light_shaft", "scope": "team", "slots": 1, "skill": "light_shaft", "needs_fact": "mine", "args": {"name": "mine", "start": "base_exit"}, "fact": "mine_lit", "note": "torches down the shaft dug before anyone had coal"},

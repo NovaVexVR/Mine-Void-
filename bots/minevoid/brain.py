@@ -389,6 +389,13 @@ class Agent:
             self.death = None
             task = {"id": "recover_gear", "skill": "recover",
                     "args": {"pos": death[0]}}
+        elif g.overworld() and "base" in self.facts \
+                and math.dist(g.pos(), self.facts["base"]) < 64 \
+                and ((not g.count(items.CLASSES["pickaxe"])
+                      and (self.facts.get("storage") or {}).get("stone_pickaxe"))
+                     or (unarmed and (self.facts.get("storage") or {}).get("stone_sword"))):
+            # Lost our tools: the spares in the chest, not wood again.
+            task = {"id": "restock", "skill": "restock", "args": {}, "at_base": True}
         elif ((g.health() < 8 and g.hostiles(10))
               or (unarmed and g.is_night() and g.overworld())) \
                 and task["skill"] != "shelter":
