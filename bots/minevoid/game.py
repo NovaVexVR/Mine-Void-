@@ -222,7 +222,7 @@ class Game:
     def inside_base(self, pos):
         base = getattr(self, "facts", {}).get("base")
         # the room, its farm room to the west and the bottom of the stairs
-        return bool(base) and self.overworld() and abs(pos[0] - base[0] - .5) < 10 \
+        return bool(base) and self.overworld() and abs(pos[0] - base[0] - .5) < 11 \
             and abs(pos[2] - base[2] - .5) < 8 and abs(pos[1] - base[1]) < 4
 
     def via_door(self, x, y, z):
