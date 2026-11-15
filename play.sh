@@ -34,7 +34,18 @@ if [ ${#missing[@]} -gt 0 ]; then
   echo "installing: ${missing[*]}"
   if command -v pacman >/dev/null; then
     declare -A pk=([java]=jdk21-openjdk [python]=python [curl]=curl [xvfb]=xorg-server-xvfb)
-    sudo pacman -S --needed --noconfirm $(for m in "${missing[@]}"; do echo "${pk[$m]}"; done)
+    pkgs=$(for m in "${missing[@]}"; do echo "${pk[$m]}"; done)
+    if ! sudo pacman -S --needed --noconfirm $pkgs; then
+      # Usually an out-of-date package database (the mirrors have moved on
+      # to newer builds, so the listed file 404s). Not done automatically:
+      # that is a full system upgrade, your call.
+      echo
+      echo "pacman could not fetch the packages. Update the system and retry:"
+      echo "    sudo pacman -Syu $pkgs && ./play.sh"
+      echo "(if mirrors keep returning 404 on CachyOS: sudo cachyos-rate-mirrors)"
+      echo "Or skip Xvfb for now with game windows: WINDOWS=1 ./play.sh"
+      exit 1
+    fi
   elif command -v apt-get >/dev/null; then
     declare -A pk=([java]=openjdk-21-jre-headless [python]=python3 [curl]=curl [xvfb]=xvfb)
     sudo apt-get install -y $(for m in "${missing[@]}"; do echo "${pk[$m]}"; done)
