@@ -40,7 +40,8 @@ RECIPES = {
     "iron_leggings": (("III", "I I", "I I"), {"I": "iron_ingot"}, 1),
     "iron_boots": (("I I", "I I"), {"I": "iron_ingot"}, 1),
 }
-for _mat, _ing in (("wooden", "planks"), ("stone", "stone"), ("iron", "iron_ingot")):
+for _mat, _ing in (("wooden", "planks"), ("stone", "stone"), ("iron", "iron_ingot"),
+                   ("diamond", "diamond")):
     for _tool, _pat in TOOL.items():
         RECIPES[f"{_mat}_{_tool}"] = (_pat, {"M": _ing, "S": "stick"}, 1)
 

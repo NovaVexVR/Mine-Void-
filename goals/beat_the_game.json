@@ -54,7 +54,8 @@
    {"id": "ranch", "scope": "team", "slots": 1, "skill": "ranch", "surface": true, "needs_fact": "pen", "requires": {"wheat": 2}, "cooldown": 900, "args": {}, "note": "lure cows and sheep in with wheat and breed them; hunters only take the surplus"}
   ]},
   {"id": "diamonds", "title": "Diamonds", "tasks": [
-   {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"}
+   {"id": "diamonds", "scope": "team", "slots": 1, "skill": "branch_mine", "requires": {"iron_pickaxe": 1}, "team_have": {"diamond": 2}, "args": {"blocks": "diamond", "item": "diamond", "count": 3, "level": -58, "name": "deep_mine", "length": 32, "timeout": 1200}, "note": "a second branch mine at y=-58 under the iron one; also brings back lapis for enchanting"},
+   {"id": "diamond_pickaxe", "at_base": true, "scope": "team", "slots": 1, "skill": "craft_from_storage", "storage_has": {"diamond": 3}, "args": {"item": "diamond_pickaxe", "material": "diamond", "cost": 3}, "note": "the only pickaxe that mines obsidian (portal, enchanting table)"}
   ]},
   {"id": "enchanting", "title": "Enchanting", "tasks": [
    {"id": "books", "scope": "team", "slots": 1, "skill": "make_books", "surface": true, "needs_fact": "base", "storage_has": {"leather": 1}, "team_have": {"book": 1}, "args": {"books": 3}, "note": "paper from sugar cane by the water + leather from the chest; one book for the table, the rest towards bookshelves"}
