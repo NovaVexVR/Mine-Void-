@@ -327,14 +327,20 @@ class Game:
         self._guard_at = now
         try:
             want = self.dig_ok or not self.in_rooms(self.pos())
-            settings = JavaClass("baritone.api.BaritoneAPI").getSettings()
             # (no placing either: Baritone dropped dirt into the farm's
             # water hole to walk across it, and the crops dried out)
             # (assigning setting.value from Python never reached Java: the
             # guard did nothing for hours. Baritone's own command works.)
-            for name, setting in (("allowBreak", settings.allowBreak),
-                                  ("allowPlace", settings.allowPlace)):
-                if bool(setting.value) != want:
+            # (Read on script_loop: on the render loop these ~6 reflection
+            # hops cost seconds, three times a second.)
+            with m.script_loop:
+                if getattr(self, "_bsettings", None) is None:
+                    self._bsettings = JavaClass("baritone.api.BaritoneAPI").getSettings()
+                st = self._bsettings
+                now_vals = (("allowBreak", bool(st.allowBreak.value)),
+                            ("allowPlace", bool(st.allowPlace.value)))
+            for name, val in now_vals:
+                if val != want:
                     self.b(f"set {name} {'true' if want else 'false'}")
         except Exception:
             pass
@@ -450,10 +456,34 @@ class Game:
         self.via_door(x, y, z)
         nobreak = self.walk_only(x, y, z)
         try:
-            return self._goto(x, y, z, timeout, near)
+            start = self.pos()
+            ok = self._goto(x, y, z, timeout, near)
+            if not ok and not self.dig_ok and self.overworld() and self.in_pit(start) \
+                    and math.dist(start, self.pos()) < 1:
+                ok = self.dig_out(lambda: self._goto(x, y, z, 60, near))
+            return ok
         finally:
             if nobreak:
                 self.b("set allowBreak true")
+
+    def in_pit(self, pos):
+        """Inside the base rooms but below their floor (a bot fell into a
+        1x1 hole by the north wall and could not get out)."""
+        base = getattr(self, "facts", {}).get("base")
+        return bool(base) and self.in_rooms(pos) and math.floor(pos[1]) < base[1]
+
+    def dig_out(self, retry):
+        """Stuck inside the base (a pit among scaffolding and patch blocks,
+        where digging is off): one retry with digging allowed. A bot sat in
+        such a pit for an hour failing every job. Sealing repairs any hole."""
+        self.log(f"stuck in the base at {self.block_pos()}: digging out")
+        self.dig_ok = True
+        try:
+            self.b("set allowBreak true")
+            self.b("set allowPlace true")
+            return retry()
+        finally:
+            self.dig_ok = False
 
     def _goto(self, x, y, z, timeout, near):
         self.b(f"goto {x} {y} {z}")
@@ -472,7 +502,12 @@ class Game:
         self.via_door(x, y, z)
         nobreak = self.walk_only(x, y, z)
         try:
-            return self._goto_near(x, y, z, radius, timeout)
+            start = self.pos()
+            ok = self._goto_near(x, y, z, radius, timeout)
+            if not ok and not self.dig_ok and self.overworld() and self.in_pit(start) \
+                    and math.dist(start, self.pos()) < 1:
+                ok = self.dig_out(lambda: self._goto_near(x, y, z, radius, 60))
+            return ok
         finally:
             if nobreak:
                 self.b("set allowBreak true")
