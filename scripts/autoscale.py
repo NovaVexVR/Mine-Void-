@@ -165,8 +165,9 @@ def start_bot(name):
     subprocess.call([os.path.join(ROOT, "scripts", "mc-cmd.sh"), f"whitelist add {name}"],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     flags = os.environ.get("LAUNCH_FLAGS", "--headless").split()
+    # (own session: signals meant for the autoscaler must not reach the bot)
     subprocess.call([sys.executable, os.path.join(ROOT, "client", "launch.py"), name] + flags,
-                    stdout=subprocess.DEVNULL)
+                    stdout=subprocess.DEVNULL, start_new_session=True)
 
 
 def stop_bot(name):
