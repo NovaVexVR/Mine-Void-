@@ -835,26 +835,40 @@ def shelter(g, facts):
             g.log(f"bed at {bed} is missing")
             g.lost.append("bed")
             bed = None
-        last_try = 0
+        last_try, ready = 0, False
 
         def morning():
-            nonlocal last_try
-            if bed and not g.sleeping() and time.time() - last_try > 8 \
+            # Everyone must lie down within the 5 s before a sleeper skips
+            # the night (a third of the team is enough): only the first bot
+            # in, trying every 8 s, ever slept, and the others got phantoms
+            # after three sleepless nights (one killed Void1). So wait by
+            # the bed and try every second from the first moment beds work.
+            nonlocal last_try, ready
+            w = m.world_info()
+            t = w.day_ticks % 24000
+            can = 12542 <= t <= 23459 or w.thundering
+            if bed and not ready and (can or t >= 11500):
+                g.stop()  # Baritone must not be steering the camera
+                if math.dist(g.pos(), (bed[0] + .5, bed[1], bed[2] + .5)) > 2.5:
+                    g.goto_near(*bed, radius=1, timeout=20)
+                g.aim(bed)
+                ready = True
+            if bed and can and not g.sleeping() and time.time() - last_try > 1 \
                     and not g.hostiles(8):
                 last_try = time.time()
                 g.status = "going to sleep"
-                g.stop()  # Baritone must not be steering the camera
+                g.stop()
                 if math.dist(g.pos(), (bed[0] + .5, bed[1], bed[2] + .5)) > 3:
                     g.goto_near(*bed, radius=1, timeout=20)
                 if g.aim(bed):  # crosshair really on the bed
                     m.player_press_use(True)
-                    time.sleep(0.3)
+                    time.sleep(0.2)
                     m.player_press_use(False)
-                    time.sleep(1)
-                g.log(f"sleep attempt: sleeping={g.sleeping()} "
-                      f"time={m.world_info().day_ticks % 24000}")
+                    time.sleep(0.3)
+                if g.sleeping():
+                    g.log(f"asleep at time {t}")
             return not g.is_night() and not g.is_dusk()
-        g.wait(morning, 900, 2)
+        g.wait(morning, 900, 0.5)
     else:
         seal_in(g)
         g.wait(lambda: not g.is_night(), 700, 2)
