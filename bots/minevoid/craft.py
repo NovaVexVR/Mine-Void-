@@ -6,6 +6,7 @@ Missing intermediate items (planks, sticks, table) are crafted recursively;
 missing raw materials are gathered through `gather_hook`.
 """
 import math
+import os
 import re
 import time
 
@@ -145,11 +146,18 @@ def book_ids(g, item):
     return _book.get(item, []) if item != "_built" else []
 
 
+# Off until the recipe-book scan is cheap: reading every recipe through
+# Minescript's reflection froze the bots for minutes at a time.
+BOOK_CRAFTING = os.environ.get("MINEVOID_BOOK") == "1"
+
+
 def book_craft(g, item, times, small):
     """Craft through the recipe book: one request places the whole recipe
     in the grid (the server checks the ingredients), then the result is
     taken - about a second instead of 5-20 s of slot clicks. Falls back
     (False) when the recipe is not in our book or nothing comes out."""
+    if not BOOK_CRAFTING:
+        return False
     ids = book_ids(g, item)
     if not ids:
         return False
