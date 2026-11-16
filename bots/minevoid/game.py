@@ -137,7 +137,12 @@ class Game:
         return m.player_health()
 
     def hunger(self):
-        return self.mc.player.getFoodData().getFoodLevel()
+        with m.script_loop:  # (see FAST below)
+            return int(self.mc.player.getFoodData().getFoodLevel())
+
+    def air(self):
+        with m.script_loop:
+            return int(self.mc.player.getAirSupply())
 
     def is_dusk(self):
         """The last in-game hour or so before night: time to head home."""
@@ -493,6 +498,27 @@ class Game:
     def menu(self):
         return self.mc.player.containerMenu
 
+    # FAST: Java reflection on Minescript's default (render) loop waits for
+    # frames, ~0.7 s per hop at the bots' 10 fps: reading a chest took over a
+    # minute. Plain reads go through script_loop (~30x faster); anything that
+    # changes the game (clicks, crafting) stays on the render loop.
+    def slots(self, n, first=0):
+        """[(item, count) or None] for menu slots first..first+n-1."""
+        out = []
+        with m.script_loop:
+            menu = self.mc.player.containerMenu
+            for i in range(first, first + n):
+                st = menu.getSlot(i).getItem()
+                if st.isEmpty():
+                    out.append(None)
+                else:
+                    count, item = str(st.toString()).split(" ", 1)
+                    out.append((short(item), int(count)))
+        return out
+
+    def slot(self, i):
+        return self.slots(1, i)[0]
+
     def click(self, slot, button=0, kind="PICKUP"):
         """Click a slot of the currently open menu. Every reflection call is
         a round trip to the client, so the lookups are cached and refreshed
@@ -838,7 +864,8 @@ class Game:
         return True
 
     def sleeping(self):
-        return bool(self.mc.player.isSleeping())
+        with m.script_loop:
+            return bool(self.mc.player.isSleeping())
 
     def aim(self, pos):
         """Look at a block and confirm the crosshair is really on it. If
@@ -1026,8 +1053,10 @@ class Game:
                 # (right next to us it counts anyway: a pillager standing in
                 # the closed door's block shot bots while "out of sight")
                 try:
-                    je = self.mc.level.getEntity(e.id)
-                    if je is None or not self.mc.player.hasLineOfSight(je):
+                    with m.script_loop:
+                        je = self.mc.level.getEntity(e.id)
+                        seen = je is not None and self.mc.player.hasLineOfSight(je)
+                    if not seen:
                         continue
                 except Exception:
                     pass

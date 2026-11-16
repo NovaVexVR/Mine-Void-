@@ -608,7 +608,7 @@ def hunt(g, facts, count=6, timeout=600, animals=ANIMALS, item="food", fed=None)
             if not cur:
                 break  # dead (or gone)
             pos = cur[0].position
-            if g.mc.player.getAirSupply() < 200:
+            if g.air() < 200:
                 escaped.add(target.uuid)  # out of breath: let it go
                 break
             if math.dist(g.pos(), pos) > 2.5:
@@ -654,12 +654,9 @@ def open_chest(g, facts):
 
 def chest_contents(g):
     out = {}
-    menu = g.menu()
-    for i in range(27):
-        st = menu.getSlot(i).getItem()
-        if not st.isEmpty():
-            n, item = str(st.toString()).split(" ", 1)
-            out[short(item)] = out.get(short(item), 0) + int(n)
+    for st in g.slots(27):
+        if st:
+            out[st[0]] = out.get(st[0], 0) + st[1]
     return out
 
 
@@ -729,15 +726,16 @@ def withdraw(g, facts, item, n):
     if not open_chest(g, facts):
         return None
     menu, got = g.menu(), 0
+    stacks = g.slots(27)
     for i in range(27):
         need = n - g.count(lambda j: j == item)
         if need <= 0:
             break
-        st = menu.getSlot(i).getItem()
-        if st.isEmpty() or short(str(st.toString()).split(" ", 1)[1]) != item:
+        st = stacks[i]
+        if not st or st[0] != item:
             continue
         free = sorted(set(range(36)) - {s.slot for s in m.player_inventory()})
-        if need >= st.getCount() or need > 16 or not free:
+        if need >= st[1] or need > 16 or not free:
             g.click(i, 0, "QUICK_MOVE")  # the whole stack
         else:
             # Just what we need: a whole stack left the rest stranded in
@@ -1228,11 +1226,16 @@ def scaffold_place(g, filler, c, base, farm_room):
     return False
 
 
-def inside_spot(base, c, facts):
-    """A floor cell inside the rooms close to `c`, to place it from."""
-    inside = [p for p in base_interior(base, bool(facts.get("farm_room")))
-              if p[1] == base[1]]
-    return min(inside, key=lambda p: math.dist(p, c))
+def inside_spot(base, c, facts, holes=()):
+    """A cell inside the rooms to stand on and place `c` from: the nearest
+    one with ground under it (the floor, or a step of the tree-room stair).
+    (Only the base floor level was considered, so holes down the stair were
+    'placed' from 5 blocks above, out of reach, every night again.)"""
+    inside = base_interior(base, bool(facts.get("farm_room")))
+    holes = set(holes)
+    floor = [p for p in inside if (p[0], p[1] - 1, p[2]) not in inside
+             and (p[0], p[1] - 1, p[2]) not in holes and p != tuple(c)]
+    return min(floor, key=lambda p: (math.dist(p, c), -p[1]))
 
 
 def base_openings(g, base, farm_room=False):
@@ -1319,7 +1322,7 @@ def seal_base(g, facts):
             # (A temporary helper block next to the hole never worked from
             # inside - the face it offers points away from us - and it hid
             # the hole from view; place_against jumps for head-height gaps.)
-            stand = inside_spot((x, y, z), c, facts)
+            stand = inside_spot((x, y, z), c, facts, holes)
             if g.block(*stand) not in AIR:
                 # (in the farm room the floor cell is the soil itself:
                 # stand on top of it - the bot never got under the hole)
@@ -1482,8 +1485,8 @@ def smelt(g, facts, input, output, count):
         g.click(g.menu_slot(stack.slot, 3))
         g.click(slot)
         g.click(g.menu_slot(stack.slot, 3))  # leftovers back, if any
-    n = min(n, g.menu().getSlot(0).getItem().getCount())
-    done = lambda: g.menu().getSlot(0).getItem().isEmpty()
+    n = min(n, (g.slot(0) or (None, 0))[1])
+    done = lambda: g.slot(0) is None
     # Each item takes 10 s. Do not use g.sleep here: defending would close
     # the furnace screen, so smelt somewhere safe (the base).
     end = time.time() + n * 10 + 20
@@ -2622,6 +2625,57 @@ def wait_for_food(g, facts, timeout=180):
     return g.count(food) > 0
 
 
+def farm_ripe(g, facts):
+    """Ripe wheat in all farm rooms (one block-list call each)."""
+    y = facts["base"][1]
+    n = 0
+    for w in farms(facts):
+        _, _, soil = farm_room_cells(facts["base"], w)
+        n += sum(str(b or "").startswith("minecraft:wheat[age=7")
+                 for b in m.getblocklist([[c[0], y + 1, c[2]] for c in soil]))
+    return n
+
+
+def heal(g, facts, timeout=150):
+    """Badly hurt with nothing to eat: health only comes back with 18+ food.
+    Into the base, bread from our wheat, the chest or the farm, eat until
+    full and rest until mended. (Bots sat at 2 HP and 15 food for ages.)"""
+    g.status = "healing: getting food"
+    x, y, z = facts["base"]
+    if not g.in_rooms(g.pos()) and not g.goto(x, y, z, timeout=240, near=1):
+        return False
+    food = CLASSES["food"]
+    if not g.count(food):
+        if g.count(lambda i: i == "wheat") >= 3:
+            crafting.craft(g, "bread", g.count(lambda i: i == "wheat") // 3)
+        else:
+            stored = facts.get("storage") or {}
+            kind = next((k for k in ("bread", "cooked_beef", "cooked_porkchop",
+                                     "cooked_mutton", "cooked_chicken", "baked_potato",
+                                     "carrot", "apple") if stored.get(k)), None)
+            if kind:
+                withdraw(g, facts, kind, 3)
+                g.close_screen()
+            elif facts.get("farm_room") and farm_ripe(g, facts) >= 3:
+                harvest_farm(g, facts, "farm")
+    farm = facts.get("farm")
+    stored = facts.get("storage") or {}
+    rod = g.count(lambda i: i == "fishing_rod") or g.count(
+        lambda i: i == "string") + stored.get("string", 0) >= 2
+    if not g.count(food) and rod and facts.get("farm_room") and farm \
+            and g.block(*farm) == "water":
+        fish(g, facts, count=3, timeout=300)  # (the farm's water: indoors, safe)
+    if not g.count(food):
+        return False
+    g.status = "healing: eating and resting"
+    end = time.time() + timeout
+    while time.time() < end and g.health() < 16:
+        if g.hunger() < 18 and g.count(food):
+            g.eat()
+        g.sleep(3)
+    return g.health() >= 10
+
+
 def idle(g, facts):
     g.status = "idle"
     g.sleep(10)
@@ -2949,6 +3003,7 @@ SKILLS = {"gather": gather, "craft": craft, "hunt": hunt, "shelter": shelter,
     "wait_for_food": wait_for_food,
     "stock_spares": stock_spares,
     "restock": restock,
+    "heal": heal,
     "make_torches": make_torches,
     "plant_trees": plant_trees,
     "light_exit": light_exit,

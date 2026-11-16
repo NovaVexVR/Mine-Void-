@@ -126,13 +126,14 @@ class Agent:
         # overworld, which looks just like walking through a portal.
         key = None
         try:
-            spot = g.mc.player.getLastDeathLocation()
-            if spot.isPresent():
-                gp = spot.get()
-                bp = gp.pos()
-                # "ResourceKey[minecraft:dimension / minecraft:the_nether]"
-                key = (str(gp.dimension()).rsplit(":", 1)[-1].rstrip("]"),
-                       bp.getX(), bp.getY(), bp.getZ())
+            with m.script_loop:  # (a read: no need to wait for a frame)
+                spot = g.mc.player.getLastDeathLocation()
+                if spot.isPresent():
+                    gp = spot.get()
+                    bp = gp.pos()
+                    # "ResourceKey[minecraft:dimension / minecraft:the_nether]"
+                    key = (str(gp.dimension()).rsplit(":", 1)[-1].rstrip("]"),
+                           bp.getX(), bp.getY(), bp.getZ())
         except Exception:
             key = getattr(self, "death_key", None)
         first = not hasattr(self, "death_key")
@@ -142,7 +143,8 @@ class Agent:
         # dimension (a portal trip changes the dimension too).
         if not hasattr(self, "_identity"):
             self._identity = JavaClass("java.lang.System").identityHashCode
-        ident = (self._identity(g.mc.player), g.dim())
+        with m.script_loop:
+            ident = (self._identity(g.mc.player), g.dim())
         last = getattr(self, "player_ident", ident)
         if not first and key is not None and ident[0] != last[0] and ident[1] == last[1]:
             # (The new player object can arrive before the new death
@@ -185,9 +187,10 @@ class Agent:
         self.was_dead = dead
         if dead:
             return
+        air = g.air()
         if not died:
-            self.last_air = g.mc.player.getAirSupply()
-        if g.mc.player.getAirSupply() < 120:
+            self.last_air = air
+        if air < 120:
             # Drowning (underwater cave, flooded tunnel): stop pathing and
             # swim straight up until we can breathe again.
             # (Cancel the path, not just pause it: resuming took the bot
@@ -198,7 +201,7 @@ class Agent:
                 m.player_set_orientation(m.player_orientation()[0], -90)
                 m.player_press_jump(True)
                 end = time.time() + 20
-                while time.time() < end and g.mc.player.getAirSupply() < 280 \
+                while time.time() < end and g.air() < 280 \
                         and g.health() > 0:
                     time.sleep(0.2)
             finally:
@@ -436,6 +439,16 @@ class Agent:
             # 34 deaths). Wait in the base for the farm's bread instead.
             task = {"id": "wait_for_food", "skill": "wait_for_food", "args": {},
                     "at_base": True}
+        elif g.health() < 10 and g.hunger() < 18 and g.overworld() \
+                and g.count(items.CLASSES["food"]) == 0 and "base" in self.facts \
+                and math.dist(g.pos(), self.facts["base"]) < 60 \
+                and task["skill"] not in ("harvest", "fish", "heal", "recover") \
+                and time.time() - getattr(self, "heal_at", 0) > 600:
+            # Hurt with nothing to eat: health only regenerates at 18+ food,
+            # and a bot sat at 2 HP and 15 food for a long time. Bread from
+            # its wheat, the chest or the farm, then eat and rest.
+            self.heal_at = time.time()
+            task = {"id": "heal", "skill": "heal", "args": {}, "at_base": True}
         elif g.hunger() <= 6 and g.count(items.CLASSES["food"]) == 0 and not g.is_night() \
                 and g.overworld() and task["skill"] not in ("harvest", "fish"):
             # (Not instead of harvesting or fishing: those are food too, and

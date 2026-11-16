@@ -149,10 +149,12 @@ def book_ids(g, item):
         _book.clear()
         _book["_built"] = time.time()
         try:
-            book = g.mc.player.getRecipeBook()
-            field = book.getClass().getDeclaredField(KNOWN_FIELD)
-            field.setAccessible(True)
-            for name, idx in parse_book(str(field.get(book))).items():
+            with m.script_loop:  # (a read: see game.Game.slots)
+                book = g.mc.player.getRecipeBook()
+                field = book.getClass().getDeclaredField(KNOWN_FIELD)
+                field.setAccessible(True)
+                text = str(field.get(book))
+            for name, idx in parse_book(text).items():
                 _book[name] = idx
         except Exception as ex:
             g.log(f"recipe book unreadable: {ex}")
@@ -283,8 +285,7 @@ def craft(g, item, times=1, retries=3):
                 g.click(src)                       # put the rest back
                 left -= put
     # The server computes the result; wait for it to show up.
-    menu = g.menu()
-    g.wait_plain(lambda: not menu.getSlot(0).getItem().isEmpty(), 4)
+    g.wait_plain(lambda: g.slot(0) is not None, 4)
     g.click(0, 0, "QUICK_MOVE")                    # shift-click the result
     time.sleep(0.4)
     if not small:
