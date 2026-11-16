@@ -118,43 +118,60 @@ def _display_id():
     return JavaClass("net.minecraft.world.item.crafting.display.RecipeDisplayId")
 
 
+KNOWN_FIELD = "field_54810"  # ClientRecipeBook.known (Map id -> entry), runtime name
+ENTRY = re.compile(r"class_\d+\[index=(\d+)\]=")
+
+
+def parse_book(text):
+    """{item: [recipe index, ...]} for crafting-table recipes, from the text
+    of the client's whole recipe book (ClientRecipeBook.known.toString())."""
+    out = {}
+    starts = list(ENTRY.finditer(text))
+    for n, hit in enumerate(starts):
+        end = starts[n + 1].start() if n + 1 < len(starts) else len(text)
+        entry = text[hit.end():end]
+        k = entry.find("result=")
+        station = entry.find("craftingStation=")
+        if k < 0 or station < 0 or "crafting_table" not in entry[station:station + 200]:
+            continue  # (furnace, stonecutter, smithing...)
+        item = re.search(r"minecraft:([a-z0-9_]+)", entry[k:])
+        if item:
+            out.setdefault(item.group(1), []).append(int(hit.group(1)))
+    return out
+
+
 def book_ids(g, item):
-    """Recipe-book entries whose result is `item` (cached per session)."""
-    # Built once, refreshed every 10 minutes (new recipes unlock as items
-    # turn up) - not on every miss: a full scan takes ~6 s, and doing it for
-    # each craft of something not in the book froze the bots.
+    """Recipe-book entries whose result is `item`."""
+    # The whole book is read in one Java call (~4 s on a busy client) and
+    # kept for 10 minutes (new recipes unlock as items turn up). Reading it
+    # entry by entry took 3 calls of up to 2 s each per recipe: minutes.
     if time.time() - _book.get("_built", 0) > 600:
         _book.clear()
         _book["_built"] = time.time()
         try:
-            cols = g.mc.player.getRecipeBook().getCollections()
-            for i in range(cols.size()):
-                rs = cols.get(i).getRecipes()
-                for j in range(rs.size()):
-                    e = rs.get(j)
-                    text = str(e)
-                    k = text.find("result=")
-                    hit = re.search(r"minecraft:([a-z0-9_]+)", text[k:]) if k >= 0 else None
-                    idx = re.search(r"id=[\w.$]+\[index=(\d+)\]", text)
-                    if hit and idx:
-                        # (e.id is Minescript's own object handle, shadowing
-                        # the record's id(): rebuild the id from its index)
-                        rid = _display_id()(int(idx.group(1)))
-                        _book.setdefault(hit.group(1), []).append(rid)
+            book = g.mc.player.getRecipeBook()
+            field = book.getClass().getDeclaredField(KNOWN_FIELD)
+            field.setAccessible(True)
+            for name, idx in parse_book(str(field.get(book))).items():
+                _book[name] = idx
         except Exception as ex:
             g.log(f"recipe book unreadable: {ex}")
-    return _book.get(item, []) if item != "_built" else []
+    if item == "_built" or not _book.get(item):
+        return []
+    # (e.id is Minescript's own object handle, shadowing the record's id():
+    # the ids are rebuilt from their index)
+    make = _display_id()
+    return [make(i) for i in _book[item]]
 
 
-# Off until the recipe-book scan is cheap: reading every recipe through
-# Minescript's reflection froze the bots for minutes at a time.
-BOOK_CRAFTING = os.environ.get("MINEVOID_BOOK") == "1"
+# Recipe-book crafting can be switched off with MINEVOID_BOOK=0.
+BOOK_CRAFTING = os.environ.get("MINEVOID_BOOK") != "0"
 
 
 def book_craft(g, item, times, small):
     """Craft through the recipe book: one request places the whole recipe
     in the grid (the server checks the ingredients), then the result is
-    taken - about a second instead of 5-20 s of slot clicks. Falls back
+    taken - a few calls instead of a dozen slot clicks. Falls back
     (False) when the recipe is not in our book or nothing comes out."""
     if not BOOK_CRAFTING:
         return False
@@ -166,21 +183,27 @@ def book_craft(g, item, times, small):
     elif not open_table(g):
         return False
     g.sync_menu()
-    menu = g.menu()
+    gm, _, cid, _ = g._click
     pred = lambda i: i == item or (item == "planks" and i.endswith("_planks"))
-    before = g.count(pred)
+    before = have = g.count(pred)
     made = 0
+    # (Each Java call is a slow round trip, so instead of polling the result
+    # slot: place, shift-click the result, and see if the inventory grew.)
     for _ in range(times):
         placed = False
         for rid in ids:  # (several recipes can make the same thing)
-            g.mc.gameMode.handlePlaceRecipe(menu.containerId, rid, False)
-            if g.wait_plain(lambda: not menu.getSlot(0).getItem().isEmpty(), 1.5):
-                placed = True
+            gm.handlePlaceRecipe(cid, rid, False)
+            for wait in (0.35, 0.8):
+                time.sleep(wait)
+                g.click(0, 0, "QUICK_MOVE")
+                now = g.count(pred)
+                if now > have:
+                    have, placed = now, True
+                    break
+            if placed:
                 break
         if not placed:
             break
-        g.click(0, 0, "QUICK_MOVE")
-        time.sleep(0.3)
         made += 1
     if small:
         clear_grid(g)

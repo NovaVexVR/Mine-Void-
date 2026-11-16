@@ -504,8 +504,10 @@ class Game:
 
     def sync_menu(self):
         p = self.mc.player
-        kinds = {k: getattr(self.ClickType, k) for k in ("PICKUP", "QUICK_MOVE", "THROW")}
-        self._click = (self.mc.gameMode, p, p.containerMenu.containerId, kinds)
+        if not getattr(self, "_kinds", None):  # (constants: look them up once)
+            self._kinds = {k: getattr(self.ClickType, k)
+                           for k in ("PICKUP", "QUICK_MOVE", "THROW")}
+        self._click = (self.mc.gameMode, p, p.containerMenu.containerId, self._kinds)
 
     def menu_slot(self, inv_slot, top_slots):
         """Map a player-inventory slot to a slot id in the open menu, given
