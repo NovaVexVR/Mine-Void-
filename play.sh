@@ -4,6 +4,9 @@
 #
 #     ./play.sh            # server + coordinator + 3 bots
 #     ./play.sh 5          # ... with 5 bots
+#     ./play.sh auto       # as many bots as the computer can spare: more
+#                          # while you're away, fewer while you use it
+#                          # (scripts/autoscale.py; tune with AUTOSCALE_ARGS)
 #     WINDOWS=1 ./play.sh  # show each bot in a small game window
 #
 # Bots run headless by default: each on its own virtual display (Xvfb),
@@ -17,6 +20,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 N="${1:-3}"
+AUTO=""
+if [ "$N" = auto ]; then AUTO=1; N=1; fi
 
 # -- dependencies ---------------------------------------------------------
 java21() {
@@ -87,6 +92,10 @@ else
   export LAUNCH_FLAGS="--headless"
 fi
 scripts/start.sh "$N"
+if [ -n "$AUTO" ]; then
+  python3 scripts/autoscale.py ${AUTOSCALE_ARGS:-} >/dev/null &
+  echo "autoscale on: bots come and go with free memory/CPU (log: run/autoscale.log)"
+fi
 echo
 echo "running: $N bots. Dashboard http://127.0.0.1:8765/ - Ctrl+C to stop everything."
 tail -n 5 -F run/coordinator.log &

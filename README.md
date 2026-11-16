@@ -126,6 +126,19 @@ shows them in small game windows instead). Ctrl+C stops everything. The dashboar
 is at http://127.0.0.1:8765/. Budget about a core and 1.5 GB RAM per bot
 plus ~3 GB for the server.
 
+**On the computer you use every day**, run `./play.sh auto` instead: the
+autoscaler (`scripts/autoscale.py`) then starts one bot and, every 30 s,
+looks at free memory, at the CPU used by everything that isn't Mine-Void,
+and at whether you've touched the keyboard or mouse (xprintidle on X11,
+the login session's idle flag on Wayland). While you're away it adds a bot
+every 3 minutes up to 6, as long as 4 GB of memory stay free; when you come
+back, or a game or build starts using the CPU, it stops bots down to 1. A
+stopped bot just disconnects and keeps its items. Tune it with
+`AUTOSCALE_ARGS="--max 4 --active-max 2 --reserve-gb 6" ./play.sh auto`, or
+override the detection by writing `idle`, `active`, `pause` or `auto` into
+`run/autoscale-mode`. `scripts/autoscale.py --status` shows what it
+measures; decisions are logged to `run/autoscale.log`.
+
 ### Watching and testing a running setup
 
 ```bash
