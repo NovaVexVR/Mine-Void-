@@ -823,8 +823,13 @@ def shelter(g, facts):
     reach = 2 * LEASH if not g.is_night() else 48
     if base and math.dist(g.pos(), base) < reach \
             and g.goto(*base, timeout=300, near=2):
-        seal_base(g, facts)
-        if any(short(st.item) in VALUABLES for st in m.player_inventory()):
+        # Close to nightfall, bed first: the walls took minutes and the
+        # night was skipped by someone else meanwhile (no rest = phantoms).
+        t = m.world_info().day_ticks % 24000
+        bedtime = 11500 <= t <= 13500
+        if not bedtime:
+            seal_base(g, facts)
+        if not bedtime and any(short(st.item) in VALUABLES for st in m.player_inventory()):
             result = store(g, facts)
             if result:
                 g.pending_facts.update(result)
