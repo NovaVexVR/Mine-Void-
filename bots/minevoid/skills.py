@@ -1163,11 +1163,30 @@ def base_interior(base, farm_room=False):
     return cells
 
 
+REACH = set()  # the rooms' air joined to the base room (set by base_shell)
+
+
 def base_shell(g, base, farm_room=False):
     """Air cells in the one-block shell around the rooms (walls, floor,
     ceiling), skipping the door. Nearest-to-the-floor first."""
     x, y, z = base
     inside = base_interior(base, farm_room)
+    # The rooms' air that is joined to the base room: a pocket dug halfway
+    # down the unfinished tree stair touched a cave, and its "holes" (which
+    # lead nowhere near the base) were patched in vain every night.
+    cells = sorted(inside)
+    air_in = {c for c, k in zip(cells, m.getblocklist([list(c) for c in cells]))
+              if short(k) in AIR}
+    reach, todo = {(x, y, z)}, [(x, y, z)]
+    while todo:
+        c = todo.pop()
+        for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+            n = (c[0] + d[0], c[1] + d[1], c[2] + d[2])
+            if n in air_in and n not in reach:
+                reach.add(n)
+                todo.append(n)
+    REACH.clear()
+    REACH.update(reach)
     # face neighbours only: nothing gets through a diagonal gap, and edge
     # cells cannot be reached from inside anyway
     shell = {(cx + dx, cy + dy, cz + dz) for cx, cy, cz in inside
@@ -1200,8 +1219,7 @@ def base_shell(g, base, farm_room=False):
     def touches_room(c):
         nb = [(c[0] + d[0], c[1] + d[1], c[2] + d[2]) for d in
               ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
-        nb = [p for p in nb if p in inside]
-        return any(short(k) in AIR for k in m.getblocklist([list(p) for p in nb])) if nb else False
+        return any(p in reach for p in nb)
     holes = [c for c in holes if touches_room(c) or c in caps]
     return holes + [c for c, k in zip(caps, cap_kinds) if short(k) in AIR]
 
@@ -1231,7 +1249,7 @@ def inside_spot(base, c, facts, holes=()):
     one with ground under it (the floor, or a step of the tree-room stair).
     (Only the base floor level was considered, so holes down the stair were
     'placed' from 5 blocks above, out of reach, every night again.)"""
-    inside = base_interior(base, bool(facts.get("farm_room")))
+    inside = REACH or base_interior(base, bool(facts.get("farm_room")))
     holes = set(holes)
     floor = [p for p in inside if (p[0], p[1] - 1, p[2]) not in inside
              and (p[0], p[1] - 1, p[2]) not in holes and p != tuple(c)]
