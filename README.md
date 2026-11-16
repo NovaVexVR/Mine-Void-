@@ -126,6 +126,14 @@ shows them in small game windows instead). Ctrl+C stops everything. The dashboar
 is at http://127.0.0.1:8765/. Budget about a core and 1.5 GB RAM per bot
 plus ~3 GB for the server.
 
+### Watching and testing a running setup
+
+```bash
+scripts/watch.sh        # deaths, failures, errors, milestones live; bot status every 2 min
+scripts/selftest.py     # server/coordinator/bots up, base sealed, farms lit and watered,
+                        # recipe book readable - exit code 0 when all pass (--json for tools)
+```
+
 ### Scaling
 
 `scripts/start.sh N` starts N bots (`Void1..VoidN`). Each client renders on
