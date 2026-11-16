@@ -131,7 +131,7 @@ plus ~3 GB for the server.
 ```bash
 scripts/watch.sh        # deaths, failures, errors, milestones live; bot status every 2 min
 scripts/selftest.py     # server/coordinator/bots up, base sealed, farms lit and watered,
-                        # recipe book readable - exit code 0 when all pass (--json for tools)
+                        # exit code 0 when all pass (--json for tools)
 ```
 
 ### Scaling

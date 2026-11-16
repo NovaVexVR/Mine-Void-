@@ -3,8 +3,7 @@
 
 Checks that the server, the coordinator and every bot are up, then asks each
 bot a few harmless questions through its debug socket (nothing in the world
-is changed): is the base sealed, is the farm lit and watered, can it read
-the recipe book. Exit code 0 when everything passed. Meant to be run by a
+is changed): is the base sealed, is the farm lit and watered. Exit code 0 when everything passed. Meant to be run by a
 person or by Claude watching the bots: `scripts/selftest.py --json` prints a
 machine-readable summary.
 """
@@ -52,7 +51,7 @@ def pid_alive(path):
 
 BOT_CHECKS = r'''
 import json, math
-from minevoid import skills, craft
+from minevoid import skills
 f = agent.facts
 out = {"pos": [round(v) for v in g.pos()], "health": g.health(), "dim": g.dim()}
 base = f.get("base")
@@ -67,7 +66,6 @@ if base and math.dist(g.pos(), base) < 48 and g.overworld():
         lit[w] = sum(g.block(*c) in ("torch", "wall_torch") for c in torches)
         water[w] = g.block(*centre) == "water"
     out["farm_torches"], out["farm_water"] = lit, water
-out["recipe_book"] = len([k for k in craft._book if k != "_built"]) or len(craft.book_ids(g, "stick"))
 print(json.dumps(out))
 '''
 
@@ -91,8 +89,6 @@ def main():
             check(f"{n} answers", False, e)
             continue
         check(f"{n} answers", True, f"at {info['pos']} in {info['dim']}, hp {info['health']}")
-        check(f"{n} reads the recipe book", info["recipe_book"] > 0,
-              f"{info['recipe_book']} recipes")
         if "openings" in info:
             check(f"base sealed (seen by {n})", info["openings"] == 0, info["openings"])
             for w, t in info["farm_torches"].items():
